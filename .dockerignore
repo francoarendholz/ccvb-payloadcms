@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/.astro
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+apps/cms/media
+apps/cms/test-results
+apps/cms/playwright-report

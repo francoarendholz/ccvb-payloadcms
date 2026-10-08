@@ -1,0 +1,54 @@
+# Lab-Stack auf docker.fritz.box — Ports sind an die LAN-IP gebunden,
+# TLS und Domains übernimmt der Nginx Proxy Manager.
+name: ccvb
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      CCVB_LAB_DB_PASSWORD: ${CCVB_LAB_DB_PASSWORD:?}
+      CCVB_DEV_DB_PASSWORD: ${CCVB_DEV_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+    ports:
+      - "192.168.20.203:8132:5432"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cms:
+    build:
+      context: ..
+      dockerfile: docker/cms.Dockerfile
+    image: ccvb/cms:lab
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://ccvb_lab:${CCVB_LAB_DB_PASSWORD}@postgres:5432/ccvb_lab
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
+      PREVIEW_SECRET: ${PREVIEW_SECRET:?}
+      SERVER_URL: https://ccvbcms.lab.code-ops.de
+      WEB_URL: https://ccvbastro.lab.code-ops.de
+      MEDIA_DIR: /data/media
+    volumes:
+      - media:/data/media
+    ports:
+      - "192.168.20.203:8131:3000"
+    networks: [internal]
+    mem_limit: 1536m
+
+volumes:
+  pgdata:
+  media:
+
+networks:
+  internal:
