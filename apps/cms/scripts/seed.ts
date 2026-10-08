@@ -131,8 +131,8 @@ async function seed(payload: Payload) {
     for (const l of ['ls', 'en'] as const) await payload.update({ collection: 'documents', id: doc.id, locale: l, data: { title: title[l] } })
     return doc.id
   }
-  const docSatzung = await document({ de: 'Satzung', ls: 'Satzung (Regeln vom Verband)', en: 'Statutes' }, catOrdnungen, 'verband', '2025-03-15')
-  const docBeitrag = await document({ de: 'Beitragsordnung', ls: 'Regeln für den Beitrag', en: 'Membership fee regulations' }, catOrdnungen, 'verband', '2025-03-15')
+  await document({ de: 'Satzung', ls: 'Satzung (Regeln vom Verband)', en: 'Statutes' }, catOrdnungen, 'verband', '2025-03-15')
+  await document({ de: 'Beitragsordnung', ls: 'Regeln für den Beitrag', en: 'Membership fee regulations' }, catOrdnungen, 'verband', '2025-03-15')
   const docAufnahme = await document({ de: 'Aufnahmeantrag', ls: 'Antrag zum Mitmachen', en: 'Membership application' }, catFormulare, 'verband', '2024-01-01')
   const docProtokoll = await document({ de: 'Protokoll Landesverbandstag 2025', ls: 'Protokoll Landesverbandstag 2025', en: 'Minutes general assembly 2025' }, catProtokolle, 'verband', '2025-11-20')
   const docRegelwerk = await document({ de: 'Wettkampfregelwerk 2026', ls: 'Regeln für Wett-Kämpfe 2026', en: 'Competition rules 2026' }, catOrdnungen, 'wettkaempfe', '2026-01-01')
