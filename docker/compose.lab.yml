@@ -93,10 +93,41 @@ services:
       PREVIEW_SECRET: ${PREVIEW_SECRET:?}
       CMS_API_KEY: ${PREVIEW_API_KEY:?}
       REBUILD_TOKEN: ${REBUILD_TOKEN:?}
+      # Uptime-Kuma-Push-Monitor „CCVB Website-Build“ (optional)
+      MONITOR_PUSH_URL: ${MONITOR_PUSH_URL_BUILD:-}
     volumes:
       - www:/data/www
     networks: [internal]
     mem_limit: 1536m
+
+  # Nächtliches Backup (pg_dump + Medien) per restic nach /opt/backups/ccvb/repo auf dem Host,
+  # sonntags zusätzlich Prüfung und Restore-Test. Siehe docs/BETRIEB.md.
+  backup:
+    build: ./backup
+    image: ccvb/backup:lab
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RESTIC_REPOSITORY: /repo
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?}
+      PGHOST: postgres
+      PGUSER: ccvb_lab
+      PGPASSWORD: ${CCVB_LAB_DB_PASSWORD:?}
+      PGDATABASE: ccvb_lab
+      # nur für den Restore-Test (Wegwerf-Datenbank anlegen/löschen)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      BACKUP_TIME: "02:30"
+      # Uptime-Kuma-Push-Monitor „CCVB Backup“ (optional)
+      MONITOR_PUSH_URL: ${MONITOR_PUSH_URL_BACKUP:-}
+    volumes:
+      - media:/data/media:ro
+      - /opt/backups/ccvb/repo:/repo
+      # Ziel für Wiederherstellungen im Ernstfall (docs/BETRIEB.md)
+      - /opt/backups/ccvb/restore:/restore
+    networks: [internal]
+    mem_limit: 512m
 
   # Liefert die Website aus – läuft auch, wenn CMS oder Builder stehen.
   caddy:

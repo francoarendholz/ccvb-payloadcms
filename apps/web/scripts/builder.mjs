@@ -11,6 +11,8 @@
  * - Alle übrigen Anfragen kommen von Caddy, wenn keine Datei existiert: Weiterleitung laut
  *   current/client/redirects.json oder die 404-Seite.
  * - Startet den Astro-Node-Server (SSR_PORT) für /api/form und /preview aus der aktuellen Fassung.
+ * - Optional MONITOR_PUSH_URL (Uptime-Kuma-Push-Monitor): meldet jedes Build-Ergebnis. Mit
+ *   Heartbeat-Intervall > 24 h fällt dort auch ein ausgebliebener nächtlicher Build auf.
  *
  * Rollback von Hand (im Container): cd $WWW_DIR && ln -sfn builds/<zeit> current
  */
@@ -34,8 +36,23 @@ const MAX_WAIT_MS = Number(process.env.MAX_WAIT_MS || 120_000)
 const KEEP_BUILDS = Number(process.env.KEEP_BUILDS || 3)
 const NIGHTLY_HOUR = Number(process.env.NIGHTLY_HOUR || 3)
 const RETRY_MS = 60_000
+const MONITOR_PUSH_URL = process.env.MONITOR_PUSH_URL || ''
 
 const log = (...args) => console.log(new Date().toISOString(), ...args)
+
+/** Build-Ergebnis an das Monitoring melden (Uptime-Kuma-Push), Fehler hier nie fatal. */
+async function reportToMonitor(ok, message, durationMs) {
+  if (!MONITOR_PUSH_URL) return
+  const url = new URL(MONITOR_PUSH_URL)
+  url.searchParams.set('status', ok ? 'up' : 'down')
+  url.searchParams.set('msg', message.slice(0, 200))
+  if (durationMs != null) url.searchParams.set('ping', String(Math.round(durationMs / 1000)))
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(5000) })
+  } catch (err) {
+    log(`Monitoring nicht erreichbar: ${err}`)
+  }
+}
 
 // ---------- Build-Steuerung ----------
 const status = { state: 'idle', lastSuccess: null, lastError: null, lastDurationMs: null, reasons: [] }
@@ -101,11 +118,13 @@ async function build() {
     status.lastSuccess = new Date().toISOString()
     status.lastDurationMs = Date.now() - started
     log(`Build ${id} fertig in ${Math.round(status.lastDurationMs / 1000)} s`)
+    await reportToMonitor(true, `Build ${id} ok`, status.lastDurationMs)
     await prune()
     await restartSsr()
   } catch (err) {
     status.lastError = { at: new Date().toISOString(), message: String(err.message || err).slice(0, 4000) }
     log(`Build ${id} fehlgeschlagen:\n${status.lastError.message}`)
+    await reportToMonitor(false, `Build ${id} fehlgeschlagen: ${status.lastError.message.split('\n')[0]}`)
     await fs.rm(out, { recursive: true, force: true })
     // Ohne jede Fassung (erster Start, CMS noch nicht bereit) später erneut versuchen.
     if (!existsSync(CURRENT)) setTimeout(() => requestBuild('erneuter Versuch', { immediate: true }), RETRY_MS)

@@ -116,7 +116,7 @@ docs/PLAN.md       dieses Dokument
 
 ## 4. Offene Schritte
 
-Reihenfolge als Vorschlag. **Als Nächstes:** Live-Vorschau von Hand prüfen, dann Phase 7 bzw. Design-Abstimmung.
+Reihenfolge als Vorschlag. **Als Nächstes:** Kuma einrichten (Franco), Live-Vorschau von Hand prüfen, dann Design-Abstimmung oder Phase 8.
 
 ### Phase 6 und 5: Restpunkte Frontend
 - **2-Klick-Einbettung** für YouTube/Instagram: es gibt noch keinen Einbettungs-Block im CMS. Block anlegen (URL + Titel), Frontend-Komponente mit Platzhalter und Einwilligungs-Schalter (UI-Texte `embedConsent`/`embedNotice` liegen schon bereit).
@@ -132,15 +132,22 @@ Reihenfolge als Vorschlag. **Als Nächstes:** Live-Vorschau von Hand prüfen, da
 - Live-Vorschau im CMS-Admin einmal von Hand prüfen (iframe von ccvbcms auf ccvbastro).
 - Builder-Fehler melden (E-Mail/Uptime) → Phase 7.
 
-### Phase 7: Restlicher Betrieb
-- Nächtliches `pg_dump` plus Medien-Backup per `restic`, mit dokumentiertem Restore-Test
-- CI mit GitHub Actions:
-  - lint, typecheck, Build und axe-Tests
-  - amd64-Images nach Harbor (läuft auf dem Lab-Host) oder GHCR
-- Uptime-Monitoring und Benachrichtigung bei fehlgeschlagenem Rebuild
-- SMTP für Workflow-Mails in `.env.lab` eintragen (`SMTP_*`, im Compose bereits durchgereicht)
-- Rate-Limit für den Login im Nginx Proxy Manager
-- Entscheidung Produktion: dieser Host oder EU-VPS. Dazu eigene Domains `www.` und `cms.`
+### Phase 7: Betrieb
+Entscheidungen 08.10.: Backups lokal auf dem Host, vorerst keine CI, Monitoring mit Uptime Kuma als
+eigenständigem Dienst für den ganzen Host, SMTP später. Details: **`docs/BETRIEB.md`**.
+
+Erledigt:
+- **Backup:** Container `backup` (`docker/backup/`): täglich 02:30 `pg_dump` + Media-Volume per restic nach `/opt/backups/ccvb/repo`, 7/4/6 Stände; sonntags `restic check` + automatischer Restore-Test in eine Wegwerf-Datenbank. Lokal und im Lab erfolgreich getestet. Ernstfall-Wiederherstellung in `docs/BETRIEB.md`.
+- **Uptime Kuma 2.5** unter `/opt/uptime-kuma` (nicht im Repo), Port 8140, Docker-Monitore über einen lesenden Socket-Proxy.
+- **Builder und Backup melden an Kuma** (Push-Monitore, optional über `MONITOR_PUSH_URL_BUILD` / `MONITOR_PUSH_URL_BACKUP` in `.env.lab`).
+
+Offen:
+- **Franco:** Admin-Konto in Kuma anlegen (http://192.168.20.203:8140 – bis dahin kann das jeder im LAN), Monitore laut `docs/BETRIEB.md` anlegen, Push-URLs in `.env.lab` eintragen, Benachrichtigungskanal wählen. Optional Domain über NPM.
+- **restic-Passwort** (`RESTIC_PASSWORD` in `.env.lab`) zusätzlich im Passwortmanager ablegen.
+- **SMTP** später in `.env.lab` (`SMTP_*`) – Workflow-Mails; Kuma kann es dann ebenfalls nutzen.
+- **Login-Rate-Limit im NPM** (Vorschlag, betrifft den gemeinsamen NPM): `limit_req_zone` in `/data/nginx/custom/http_top.conf` und `limit_req` für `/api/users/login` im Proxy-Host ccvbcms. Payload sperrt Konten bereits nach 5 Fehlversuchen für 10 min.
+- **CI** (GitHub Actions) – bewusst zurückgestellt.
+- **Produktion:** dieser Host oder EU-VPS, Domains `www.`/`cms.`; dann auch Backup außer Haus.
 
 ### Phase 8: Inhalte und Migration (Entscheidung offen)
 - **Option Import:** `apps/cms/scripts/import-wordpress.ts` liest die WP-REST-API (`/wp-json/wp/v2/…`) und schreibt über die Local API (HTML → Lexical).
