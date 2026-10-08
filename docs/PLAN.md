@@ -100,7 +100,8 @@ docs/PLAN.md       dieses Dokument
 ### Lab-Umgebung `docker.fritz.box` (SSH: `root@docker.fritz.box`, LAN-IP 192.168.20.203)
 | Port | Dienst | Domain (NPM) | Status |
 |---|---|---|---|
-| 8130 | Caddy (Website, `/media`, `/preview`, `/api/form`) | ccvbastro.lab.code-ops.de | siehe Phase 4 |
+| 8130 | Caddy (Website, `/media`, `/preview`, `/api/form`) | ccvbastro.lab.code-ops.de | läuft |
+| – | web (Builder 4321, Astro-Server 4322, nur intern) | – | läuft |
 | 8131 | CMS | ccvbcms.lab.code-ops.de | läuft |
 | 8132 | Postgres (nur LAN, DBs `ccvb_lab` + `ccvb_dev`) | – | läuft |
 
@@ -115,7 +116,7 @@ docs/PLAN.md       dieses Dokument
 
 ## 4. Offene Schritte
 
-Reihenfolge als Vorschlag. **Als Nächstes:** Lab-Deploy (Rest von Phase 4), dann Phase 7 bzw. Design-Abstimmung.
+Reihenfolge als Vorschlag. **Als Nächstes:** Inhalte im Lab, Live-Vorschau von Hand prüfen, dann Phase 7 bzw. Design-Abstimmung.
 
 ### Phase 6 und 5: Restpunkte Frontend
 - **2-Klick-Einbettung** für YouTube/Instagram: es gibt noch keinen Einbettungs-Block im CMS. Block anlegen (URL + Titel), Frontend-Komponente mit Platzhalter und Einwilligungs-Schalter (UI-Texte `embedConsent`/`embedNotice` liegen schon bereit).
@@ -126,7 +127,8 @@ Reihenfolge als Vorschlag. **Als Nächstes:** Lab-Deploy (Rest von Phase 4), dan
 - Manueller Test mit Screenreader (VoiceOver/NVDA) und Tastatur – axe findet nur einen Teil der Probleme.
 
 ### Phase 4: Restpunkte
-- **Lab-Deploy** des neuen Stacks (`./scripts/deploy-lab.sh`), danach in NPM `ccvbastro.lab.code-ops.de` → `192.168.20.203:8130` (Franco). Ausfalltest im Lab wiederholen (`docker compose stop cms`).
+- ~~Lab-Deploy~~ erledigt (08.10.): Stack mit web + caddy läuft, NPM-Eintrag für ccvbastro bestand schon. Im Lab geprüft: Migration, Dienstkonto, Build (8 s), Origin-Prüfung hinter NPM + Caddy, Ausfalltest mit gestopptem CMS.
+- **Die Lab-Datenbank hat noch keine Inhalte** (keine Startseite → `/` liefert 404). Entweder von Hand anlegen oder Beispielinhalte einspielen (Seed läuft bisher nur lokal gegen `ccvb_dev`).
 - Live-Vorschau im CMS-Admin einmal von Hand prüfen (iframe von ccvbcms auf ccvbastro).
 - Builder-Fehler melden (E-Mail/Uptime) → Phase 7.
 
