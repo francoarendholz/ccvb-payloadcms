@@ -1,51 +1,76 @@
-import type { Field, SelectField } from 'payload'
-
-import { hasRole } from '@/access'
+import type { Field } from 'payload'
 
 export const REVIEW_STATUS = [
-  { label: 'In Bearbeitung', value: 'in_progress' },
+  { label: '–', value: 'none' },
   { label: 'Zur Prüfung eingereicht', value: 'review' },
   { label: 'Überarbeitung erbeten', value: 'changes_requested' },
+  { label: 'Geprüft – kann veröffentlicht werden', value: 'approved' },
 ] as const
 
-const reviewStatusField: SelectField = {
-  name: 'reviewStatus',
-  type: 'select',
-  label: 'Prüfstatus',
-  defaultValue: 'in_progress',
-  options: [...REVIEW_STATUS],
-  index: true,
-  admin: {
-    position: 'sidebar',
-    description:
-      'Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.',
-  },
-}
-
-/** Freigabe-Workflow: Autor*innen reichen ein, die Redaktion prüft und veröffentlicht. */
+/**
+ * Optionale Gegenprüfung (Vier-Augen-Prinzip): Wer möchte, reicht zur Prüfung ein; eine andere
+ * Person gibt Rückmeldung. Veröffentlichen können alle – auch ohne Prüfung.
+ */
 export const reviewFields: Field[] = [
-  reviewStatusField,
   {
-    name: 'reviewNote',
-    type: 'textarea',
-    label: 'Hinweis der Redaktion',
+    type: 'collapsible',
+    label: 'Gegenprüfung (optional)',
     admin: {
       position: 'sidebar',
-      condition: (data) => data?.reviewStatus === 'changes_requested' || Boolean(data?.reviewNote),
+      initCollapsed: false,
+      description:
+        'Soll jemand noch einmal drüberschauen? Status auf „Zur Prüfung eingereicht“ setzen und optional eine Person auswählen.',
     },
-    access: {
-      update: ({ req }) => hasRole(req.user, 'admin', 'redaktion'),
-    },
-  },
-  {
-    name: 'submittedBy',
-    type: 'relationship',
-    relationTo: 'users',
-    label: 'Eingereicht von',
-    admin: {
-      position: 'sidebar',
-      readOnly: true,
-      condition: (data) => Boolean(data?.submittedBy),
-    },
+    fields: [
+      {
+        name: 'reviewStatus',
+        type: 'select',
+        label: 'Status',
+        defaultValue: 'none',
+        options: [...REVIEW_STATUS],
+        index: true,
+      },
+      {
+        name: 'reviewer',
+        type: 'relationship',
+        relationTo: 'users',
+        label: 'Prüfen soll',
+        admin: {
+          description: 'Leer lassen = jemand aus der Redaktion.',
+          condition: (data) => data?.reviewStatus && data.reviewStatus !== 'none',
+        },
+        filterOptions: ({ user }) => (user ? { id: { not_equals: user.id } } : true),
+      },
+      {
+        name: 'reviewNote',
+        type: 'textarea',
+        label: 'Rückmeldung',
+        admin: {
+          condition: (data) =>
+            data?.reviewStatus === 'changes_requested' ||
+            data?.reviewStatus === 'approved' ||
+            Boolean(data?.reviewNote),
+        },
+      },
+      {
+        type: 'row',
+        fields: [
+          {
+            name: 'submittedBy',
+            type: 'relationship',
+            relationTo: 'users',
+            label: 'Eingereicht von',
+            admin: { readOnly: true, condition: (data) => Boolean(data?.submittedBy) },
+          },
+          {
+            name: 'reviewedBy',
+            type: 'relationship',
+            relationTo: 'users',
+            label: 'Geprüft von',
+            admin: { readOnly: true, condition: (data) => Boolean(data?.reviewedBy) },
+          },
+        ],
+      },
+    ],
   },
 ]

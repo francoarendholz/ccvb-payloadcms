@@ -23,8 +23,9 @@ export const Users: CollectionConfig = {
     admin: ({ req: { user } }) => Boolean(user),
     create: isAdmin,
     delete: isAdmin,
-    // Eigenes Profil oder Admin
-    read: ({ req: { user } }) => (hasRole(user, 'admin') ? true : { id: { equals: user?.id } }),
+    // Alle Angemeldeten sehen die Kolleg*innen (z. B. für die Auswahl bei der Gegenprüfung)
+    read: ({ req: { user } }) => Boolean(user),
+    // Ändern: nur das eigene Profil, Admins alle
     update: ({ req: { user } }) => (hasRole(user, 'admin') ? true : { id: { equals: user?.id } }),
   },
   fields: [

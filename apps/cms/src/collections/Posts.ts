@@ -32,7 +32,6 @@ export const Posts: CollectionConfig<'posts'> = {
   admin: {
     group: 'Inhalte',
     useAsTitle: 'title',
-    components: { edit: { PublishButton: '@/components/PublishButton#PublishButton' } },
     defaultColumns: ['title', 'categories', 'area', 'publishedAt', 'reviewStatus', '_status'],
     livePreview: { url: ({ data, req }) => previewUrl({ collection: 'posts', id: data?.id, req }) },
     preview: (data, { req }) => previewUrl({ collection: 'posts', id: data?.id as string, req }),

@@ -199,12 +199,14 @@ export interface Page {
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
   publishedAt?: string | null;
+  reviewStatus?: ('none' | 'review' | 'changes_requested' | 'approved') | null;
   /**
-   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   * Leer lassen = jemand aus der Redaktion.
    */
-  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewer?: (number | null) | User;
   reviewNote?: string | null;
   submittedBy?: (number | null) | User;
+  reviewedBy?: (number | null) | User;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -512,12 +514,14 @@ export interface Post {
    * Inhalt erscheint automatisch auf der Seite dieses Bereichs.
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
+  reviewStatus?: ('none' | 'review' | 'changes_requested' | 'approved') | null;
   /**
-   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   * Leer lassen = jemand aus der Redaktion.
    */
-  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewer?: (number | null) | User;
   reviewNote?: string | null;
   submittedBy?: (number | null) | User;
+  reviewedBy?: (number | null) | User;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -609,12 +613,14 @@ export interface Event {
    * Inhalt erscheint automatisch auf der Seite dieses Bereichs.
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
+  reviewStatus?: ('none' | 'review' | 'changes_requested' | 'approved') | null;
   /**
-   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   * Leer lassen = jemand aus der Redaktion.
    */
-  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewer?: (number | null) | User;
   reviewNote?: string | null;
   submittedBy?: (number | null) | User;
+  reviewedBy?: (number | null) | User;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -1354,8 +1360,10 @@ export interface PagesSelect<T extends boolean = true> {
   area?: T;
   publishedAt?: T;
   reviewStatus?: T;
+  reviewer?: T;
   reviewNote?: T;
   submittedBy?: T;
+  reviewedBy?: T;
   generateSlug?: T;
   slug?: T;
   parent?: T;
@@ -1583,8 +1591,10 @@ export interface PostsSelect<T extends boolean = true> {
   categories?: T;
   area?: T;
   reviewStatus?: T;
+  reviewer?: T;
   reviewNote?: T;
   submittedBy?: T;
+  reviewedBy?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1621,8 +1631,10 @@ export interface EventsSelect<T extends boolean = true> {
       };
   area?: T;
   reviewStatus?: T;
+  reviewer?: T;
   reviewNote?: T;
   submittedBy?: T;
+  reviewedBy?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;

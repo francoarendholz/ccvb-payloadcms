@@ -23,7 +23,6 @@ export const Pages: CollectionConfig<'pages'> = {
   admin: {
     group: 'Inhalte',
     useAsTitle: 'title',
-    components: { edit: { PublishButton: '@/components/PublishButton#PublishButton' } },
     defaultColumns: ['title', 'slug', 'parent', 'area', 'reviewStatus', '_status'],
     livePreview: { url: ({ data, req }) => previewUrl({ collection: 'pages', id: data?.id, req }) },
     preview: (data, { req }) => previewUrl({ collection: 'pages', id: data?.id as string, req }),

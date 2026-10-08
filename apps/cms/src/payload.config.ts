@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url'
 import { payloadTotp, totpAccess } from 'payload-totp'
 
 import { DEFAULT_LOCALE, LOCALES } from '@ccvb/shared'
-import { hasRole } from './access'
 import { Categories } from './collections/Categories'
 import { Documents } from './collections/Documents'
 import { Events } from './collections/Events'
@@ -101,10 +100,8 @@ export default buildConfig({
     // Für zeitgesteuertes Veröffentlichen (schedulePublish)
     autoRun: [{ cron: '* * * * *', queue: 'default' }],
     access: {
-      // Veröffentlichung planen dürfen nur Redaktion/Administration (mit bestätigtem TOTP).
-      queue: async (args) =>
-        hasRole(args.req.user, 'admin', 'redaktion') &&
-        (await totpAccess(() => true)(args as never)) === true,
+      // Veröffentlichung planen: alle angemeldeten Konten mit bestätigtem TOTP.
+      queue: async (args) => (await totpAccess(() => true)(args as never)) === true,
     },
   },
 })

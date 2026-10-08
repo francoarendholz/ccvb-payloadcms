@@ -1,72 +1,55 @@
 import { APIError, type CollectionAfterChangeHook, type CollectionBeforeChangeHook } from 'payload'
 
-import { hasRole } from '@/access'
-
-const isEditorUser = (user: Parameters<typeof hasRole>[0]) => hasRole(user, 'admin', 'redaktion')
+const idOf = (value: unknown): number | string | null =>
+  value && typeof value === 'object'
+    ? ((value as { id: number | string }).id ?? null)
+    : ((value as number | string) ?? null)
 
 /**
- * Serverseitige Sperre: Nur Redaktion/Administration dürfen veröffentlichen oder
- * die Veröffentlichung zurückziehen. Greift für Admin-UI, REST, GraphQL und Local API
- * (außer bei Systemvorgängen ohne Benutzer, z. B. zeitgesteuertes Veröffentlichen).
+ * Pflegt die Gegenprüfung:
+ * - Einreichen merkt sich die einreichende Person.
+ * - Rückmeldung (geprüft / Überarbeitung) muss von einer *anderen* Person kommen.
+ * - Nach dem Veröffentlichen wird die Prüfung zurückgesetzt (Verlauf steht in den Versionen).
  */
-export const enforcePublishRights: CollectionBeforeChangeHook = async ({
-  collection,
-  data,
-  operation,
-  originalDoc,
-  req,
-}) => {
+export const trackReview: CollectionBeforeChangeHook = ({ data, originalDoc, req }) => {
   const { user } = req
-  if (!user || isEditorUser(user)) return data
+  const previous = originalDoc?.reviewStatus
+  const next = data.reviewStatus
 
   if (data._status === 'published') {
-    throw new APIError(
-      'Nur die Redaktion darf veröffentlichen. Bitte den Prüfstatus auf „Zur Prüfung eingereicht“ setzen.',
-      403,
-      null,
-      true,
-    )
-  }
-
-  // Zurückziehen = Update ohne draft=true, das den Status auf Entwurf setzt. Normales Speichern
-  // und Autosave laufen immer mit draft=true. (Query-Werte kommen als String oder Boolean an.)
-  const isDraftSave = String(req.query?.draft) === 'true' || String(req.query?.autosave) === 'true'
-  if (operation === 'update' && originalDoc?.id && data._status === 'draft' && !isDraftSave) {
-    // originalDoc ist ggf. ein neuerer Entwurf – maßgeblich ist die Live-Fassung.
-    const live = await req.payload.findByID({
-      collection: collection.slug,
-      id: originalDoc.id,
-      draft: false,
-      depth: 0,
-      overrideAccess: true,
-      select: { _status: true },
-      req,
-    })
-    if ((live as { _status?: string } | null)?._status === 'published') {
-      throw new APIError('Nur die Redaktion darf Veröffentlichungen zurückziehen.', 403, null, true)
+    return {
+      ...data,
+      reviewStatus: 'none',
+      reviewer: null,
+      reviewNote: null,
+      submittedBy: null,
+      reviewedBy: null,
     }
   }
 
-  // Feld-Validierung läuft bei Entwürfen nicht – daher hier statt im Feld.
-  if (data.reviewStatus === 'changes_requested' && originalDoc?.reviewStatus !== 'changes_requested') {
-    throw new APIError('Nur die Redaktion kann eine Überarbeitung anfordern.', 403, null, true)
+  if (!user || next === previous) return data
+
+  if (next === 'review') {
+    return { ...data, submittedBy: user.id, reviewedBy: null }
+  }
+
+  if (next === 'approved' || next === 'changes_requested') {
+    const submitter = idOf(data.submittedBy ?? originalDoc?.submittedBy)
+    if (submitter !== null && String(submitter) === String(user.id)) {
+      throw new APIError(
+        'Die Gegenprüfung muss von einer anderen Person kommen. Du kannst den Inhalt aber jederzeit selbst veröffentlichen.',
+        403,
+        null,
+        true,
+      )
+    }
+    return { ...data, reviewedBy: user.id }
   }
 
   return data
 }
 
-/** Merkt sich die einreichende Person und setzt den Status nach dem Veröffentlichen zurück. */
-export const trackReviewStatus: CollectionBeforeChangeHook = ({ data, originalDoc, req }) => {
-  if (data._status === 'published') {
-    return { ...data, reviewStatus: 'in_progress', reviewNote: null }
-  }
-  if (data.reviewStatus === 'review' && originalDoc?.reviewStatus !== 'review' && req.user) {
-    return { ...data, submittedBy: req.user.id }
-  }
-  return data
-}
-
-/** E-Mail an die Redaktion bei Einreichung bzw. an die einreichende Person bei Rückfrage. */
+/** E-Mail an die prüfende Person (bzw. Redaktion) bei Einreichung und an die einreichende Person bei Rückmeldung. */
 export const notifyReview: CollectionAfterChangeHook = async ({
   collection,
   doc,
@@ -77,48 +60,63 @@ export const notifyReview: CollectionAfterChangeHook = async ({
 
   const { payload } = req
   const adminURL = `${process.env.SERVER_URL || ''}/admin/collections/${collection.slug}/${doc.id}`
-  const label = typeof collection.labels?.singular === 'string' ? collection.labels.singular : collection.slug
+  const label =
+    typeof collection.labels?.singular === 'string' ? collection.labels.singular : collection.slug
   const title = (doc.title as string) || `#${doc.id}`
+  const actor = req.user?.name || 'Jemand'
+
+  const emailOf = async (id: number | string | null) =>
+    id ? (await payload.findByID({ collection: 'users', id, depth: 0, req })).email : null
 
   try {
     if (doc.reviewStatus === 'review') {
-      const editors = await payload.find({
-        collection: 'users',
-        where: { roles: { in: ['redaktion'] } },
-        limit: 50,
-        depth: 0,
-        req,
-      })
-      const to = editors.docs.map((u) => u.email).filter(Boolean)
+      let to: string[] = []
+      const reviewerId = idOf(doc.reviewer)
+      if (reviewerId) {
+        const email = await emailOf(reviewerId)
+        if (email) to = [email]
+      } else {
+        const editors = await payload.find({
+          collection: 'users',
+          where: { roles: { in: ['redaktion'] }, id: { not_equals: req.user?.id } },
+          limit: 50,
+          depth: 0,
+          req,
+        })
+        to = editors.docs.map((u) => u.email).filter(Boolean)
+      }
       if (to.length) {
         await payload.sendEmail({
           to,
-          subject: `Zur Prüfung: ${label} „${title}“`,
-          text: `${req.user?.name || 'Jemand'} hat „${title}“ zur Prüfung eingereicht.\n\n${adminURL}`,
+          subject: `Bitte gegenlesen: ${label} „${title}“`,
+          text: `${actor} bittet dich, „${title}“ gegenzulesen.\n\n${adminURL}`,
         })
       }
     }
 
-    if (doc.reviewStatus === 'changes_requested' && doc.submittedBy) {
-      const submitterId = typeof doc.submittedBy === 'object' ? doc.submittedBy.id : doc.submittedBy
-      const submitter = await payload.findByID({ collection: 'users', id: submitterId, depth: 0, req })
-      if (submitter?.email) {
+    if (doc.reviewStatus === 'approved' || doc.reviewStatus === 'changes_requested') {
+      const email = await emailOf(idOf(doc.submittedBy))
+      if (email) {
+        const verdict =
+          doc.reviewStatus === 'approved'
+            ? 'geprüft – du kannst ihn veröffentlichen'
+            : 'gelesen und bittet um Überarbeitung'
         await payload.sendEmail({
-          to: submitter.email,
-          subject: `Überarbeitung erbeten: „${title}“`,
-          text: `Die Redaktion bittet um Überarbeitung von „${title}“.\n\nHinweis: ${doc.reviewNote || '–'}\n\n${adminURL}`,
+          to: email,
+          subject: `Rückmeldung zu „${title}“`,
+          text: `${actor} hat „${title}“ ${verdict}.\n\nRückmeldung: ${doc.reviewNote || '–'}\n\n${adminURL}`,
         })
       }
     }
   } catch (err) {
     // Eine fehlgeschlagene Benachrichtigung darf das Speichern nicht verhindern.
-    payload.logger.error({ err, msg: 'Workflow-Benachrichtigung fehlgeschlagen' })
+    payload.logger.error({ err, msg: 'Benachrichtigung zur Gegenprüfung fehlgeschlagen' })
   }
 
   return doc
 }
 
 export const workflowHooks = {
-  beforeChange: [enforcePublishRights, trackReviewStatus],
+  beforeChange: [trackReview],
   afterChange: [notifyReview],
 }

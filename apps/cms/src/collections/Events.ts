@@ -30,7 +30,6 @@ export const Events: CollectionConfig<'events'> = {
   admin: {
     group: 'Inhalte',
     useAsTitle: 'title',
-    components: { edit: { PublishButton: '@/components/PublishButton#PublishButton' } },
     defaultColumns: ['title', 'startDate', 'area', 'reviewStatus', '_status'],
     livePreview: { url: ({ data, req }) => previewUrl({ collection: 'events', id: data?.id, req }) },
     preview: (data, { req }) => previewUrl({ collection: 'events', id: data?.id as string, req }),
