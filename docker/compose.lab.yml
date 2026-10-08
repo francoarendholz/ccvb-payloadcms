@@ -55,6 +55,29 @@ services:
     networks: [internal]
     mem_limit: 1536m
 
+  # Einmalige Aufgaben mit der Payload-CLI, z. B. Beispielinhalte:
+  #   docker compose --env-file .env.lab -f docker/compose.lab.yml run --rm cms-tools run scripts/seed.ts
+  cms-tools:
+    profiles: [tools]
+    build:
+      context: ..
+      dockerfile: docker/cms.Dockerfile
+      target: tools
+    image: ccvb/cms-tools:lab
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://ccvb_lab:${CCVB_LAB_DB_PASSWORD}@postgres:5432/ccvb_lab
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
+      MEDIA_DIR: /data/media
+      # Änderungen lösen wie im CMS einen Neubau der Website aus
+      REBUILD_URL: http://web:4321/internal/rebuild
+      REBUILD_TOKEN: ${REBUILD_TOKEN:?}
+    volumes:
+      - media:/data/media
+    networks: [internal]
+
   # Builder + Astro-Node-Server (Formulare, Vorschau). Baut die statische Website ins Volume www.
   web:
     build:

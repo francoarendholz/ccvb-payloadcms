@@ -116,7 +116,7 @@ docs/PLAN.md       dieses Dokument
 
 ## 4. Offene Schritte
 
-Reihenfolge als Vorschlag. **Als Nächstes:** Inhalte im Lab, Live-Vorschau von Hand prüfen, dann Phase 7 bzw. Design-Abstimmung.
+Reihenfolge als Vorschlag. **Als Nächstes:** Live-Vorschau von Hand prüfen, dann Phase 7 bzw. Design-Abstimmung.
 
 ### Phase 6 und 5: Restpunkte Frontend
 - **2-Klick-Einbettung** für YouTube/Instagram: es gibt noch keinen Einbettungs-Block im CMS. Block anlegen (URL + Titel), Frontend-Komponente mit Platzhalter und Einwilligungs-Schalter (UI-Texte `embedConsent`/`embedNotice` liegen schon bereit).
@@ -128,7 +128,7 @@ Reihenfolge als Vorschlag. **Als Nächstes:** Inhalte im Lab, Live-Vorschau von 
 
 ### Phase 4: Restpunkte
 - ~~Lab-Deploy~~ erledigt (08.10.): Stack mit web + caddy läuft, NPM-Eintrag für ccvbastro bestand schon. Im Lab geprüft: Migration, Dienstkonto, Build (8 s), Origin-Prüfung hinter NPM + Caddy, Ausfalltest mit gestopptem CMS.
-- **Die Lab-Datenbank hat noch keine Inhalte** (keine Startseite → `/` liefert 404). Entweder von Hand anlegen oder Beispielinhalte einspielen (Seed läuft bisher nur lokal gegen `ccvb_dev`).
+- ~~Inhalte im Lab~~ erledigt (08.10.): Beispielinhalte über den Compose-Service `cms-tools` eingespielt; die 115 Rebuild-Anfragen wurden zu einem Build gebündelt. Playwright/axe gegen https://ccvbastro.lab.code-ops.de: 92/92.
 - Live-Vorschau im CMS-Admin einmal von Hand prüfen (iframe von ccvbcms auf ccvbastro).
 - Builder-Fehler melden (E-Mail/Uptime) → Phase 7.
 
@@ -173,7 +173,8 @@ Reihenfolge als Vorschlag. **Als Nächstes:** Inhalte im Lab, Live-Vorschau von 
 13. **Builds liegen außerhalb des Projekts** (`/data/www/builds/…`). Ihr Server-Code findet Pakete wie `sharp` nur über den Symlink `/data/www/node_modules`, den der Builder beim Start anlegt.
 14. **Docker läuft lokal** (Docker Desktop, ggf. erst starten). Container immer zuerst lokal testen (`docker/compose.local.yml`), dann ins Lab.
 15. **`next dev` legt `apps/cms/AGENTS.md` und `CLAUDE.md` an** (Hinweis auf Next 16). Beide sind gitignored.
-16. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
+16. **Platzhalterbilder des Seeds haben im Container keine Beschriftung** (keine Schriften im Alpine-Image, „Fontconfig error“). Nur kosmetisch.
+17. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
     - den Aufruf der Portainer-API mit dem Token aus `.env`. Für das Deployment wird stattdessen SSH genutzt.
     - einen Dev-Server-Neustart direkt nach dem Zurücksetzen der Dev-Datenbank. Vorher nachfragen.
 
@@ -202,5 +203,7 @@ pnpm test                                  # Playwright + axe gegen den Build (P
 docker compose --env-file apps/web/.env -f docker/compose.local.yml up -d --build   # Web + Caddy lokal
 ./scripts/deploy-lab.sh            # kompletter Stack
 ./scripts/deploy-lab.sh cms        # nur CMS (Build auf dem Server, ca. 2 min)
+# Payload-CLI im Lab (Seed, Migrationen, später Import) – Image-Stufe „tools“, Profil tools
+ssh root@docker.fritz.box 'cd /opt/ccvb && docker compose --env-file .env.lab -f docker/compose.lab.yml run --rm --build cms-tools run scripts/seed.ts'
 ssh root@docker.fritz.box 'docker logs ccvb-cms-1 --tail 50'
 ```

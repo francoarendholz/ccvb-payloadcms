@@ -10,6 +10,16 @@ COPY packages/shared/package.json packages/shared/
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter @ccvb/cms...
 
+# Werkzeuge (Seed, später Import): Quellcode + Abhängigkeiten, ohne Next-Build.
+# Aufruf über den Compose-Service „cms-tools“ (Profil tools).
+FROM deps AS tools
+COPY packages/shared packages/shared
+COPY apps/cms apps/cms
+WORKDIR /app/apps/cms
+ENV NODE_ENV=production NODE_OPTIONS=--no-deprecation HOME=/tmp
+USER 1001
+ENTRYPOINT ["node_modules/.bin/payload"]
+
 FROM deps AS builder
 COPY packages/shared packages/shared
 COPY apps/cms apps/cms
