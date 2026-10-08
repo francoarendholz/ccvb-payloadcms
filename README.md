@@ -3,6 +3,8 @@
 Neue, barrierefreie Website des Cheerleading- und Cheerperformance-Verbands Berlin.
 **Payload CMS 3** als Redaktions-Backend, **Astro** als statisches Frontend.
 
+Stand, Entscheidungen und offene Schritte: [docs/PLAN.md](docs/PLAN.md)
+
 ## Aufbau
 
 ```
