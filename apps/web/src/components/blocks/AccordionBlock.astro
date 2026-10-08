@@ -1,0 +1,31 @@
+---
+import type { AccordionBlock } from '@ccvb/shared/payload-types'
+
+import RichText from '@/components/RichText.astro'
+import type { LocaleCode } from '@/i18n'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: AccordionBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+---
+
+<div class="max-w-(--container-content)">
+  <BlockHeading text={block.heading} />
+  <div class="border-t border-line">
+    {
+      (block.items ?? []).map((item) => (
+        <details class="group border-b border-line">
+          <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-lg font-semibold hover:text-brand [&::-webkit-details-marker]:hidden">
+            {item.title}
+            <svg aria-hidden="true" class="shrink-0 transition-transform group-open:rotate-180" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 5l5 5 5-5" />
+            </svg>
+          </summary>
+          <div class="pb-4">
+            <RichText data={item.content as any} locale={locale} />
+          </div>
+        </details>
+      ))
+    }
+  </div>
+</div>

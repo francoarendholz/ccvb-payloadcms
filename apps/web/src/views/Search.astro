@@ -1,0 +1,43 @@
+---
+import PageTitle from '@/components/PageTitle.astro'
+import { localeInfo, t, type LocaleCode } from '@/i18n'
+
+type Props = { locale: LocaleCode }
+const { locale } = Astro.props
+const ui = t(locale)
+---
+
+<PageTitle title={ui.search} />
+<div class="container-page mt-8 max-w-(--container-content)" id="suche" data-locale={locale}>
+  <noscript><p>{ui.searchNoJs}</p></noscript>
+  {/* Pagefind Component UI (Index entsteht beim Build). ARIA-Muster und Ansagen bringt sie mit. */}
+  <pagefind-config lang={localeInfo(locale).htmlLang}></pagefind-config>
+  <pagefind-input placeholder={ui.searchLabel}></pagefind-input>
+  <pagefind-summary class="mt-4 block"></pagefind-summary>
+  <pagefind-results class="mt-4 block"></pagefind-results>
+</div>
+
+<link href="/pagefind/pagefind-component-ui.css" rel="stylesheet" />
+<script is:inline type="module" src="/pagefind/pagefind-component-ui.js"></script>
+<script is:inline type="module">
+  // Leichte Sprache und Deutsch haben beide lang="de" – getrennt über den Filter „sprache“.
+  const locale = document.getElementById('suche').dataset.locale
+  const instance = window.PagefindComponents?.getInstanceManager().getInstance('default')
+  if (instance) {
+    await instance.triggerLoad()
+    instance.triggerFilter('sprache', [locale])
+    const q = new URLSearchParams(location.search).get('q')
+    if (q) instance.triggerSearchWithFilters(q, { sprache: [locale] })
+  }
+</script>
+
+<style is:global>
+  #suche {
+    --pf-text: var(--color-ink);
+    --pf-text-secondary: var(--color-muted);
+    --pf-text-muted: var(--color-muted);
+    --pf-border: var(--color-muted);
+    --pf-outline-focus: var(--color-focus);
+    --pf-font: var(--font-sans);
+  }
+</style>

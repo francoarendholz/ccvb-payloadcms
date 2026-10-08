@@ -1,6 +1,6 @@
 # Projektplan & Übergabe: Neue CCVB-Website
 
-> Stand: 08.10.2026 · Branch `feat/cms-grundgeruest` (noch nicht nach `main` gemergt)
+> Stand: 08.10.2026 (abends) · Branch `main`
 > Dieses Dokument ist die Übergabe für neue Arbeitssitzungen. Es beschreibt Ziel,
 > getroffene Entscheidungen, den erreichten Stand, die offenen Schritte und die
 > Stolperfallen, die bereits aufgetreten sind.
@@ -30,6 +30,7 @@ Bildung, Leistungssport, Vielfalt**.
 | Zugang CMS | Eigene Subdomain mit **verpflichtender 2FA (TOTP)**, kein VPN |
 | Hosting (vorerst) | Lab auf eigenem Docker-Host `docker.fritz.box` (Portainer). TLS übernimmt der vorhandene Nginx Proxy Manager. Die Produktionsumgebung ist noch nicht entschieden: dieser Host oder ein EU-VPS. Der Stack ist in beiden Fällen gleich. |
 | Entwicklung | Code lokal auf dem Mac (`pnpm dev`) gegen Postgres auf dem Lab-Host. Der Lab-Stack wird per SSH-Skript gebaut und deployt. |
+| Design | **Struktur zuerst** (Franco, 08.10.): Design-Tokens zentral in `apps/web/src/styles/global.css`, vorläufig Rot aus dem CCVB-Logo + Roboto wie cheersport.de. Logo vorläufig von cheersportberlin.de (PNG, 270 px – SVG-Original besorgen). |
 | WordPress-Migration | **Offen** (Phase 8) |
 
 ## 3. Erreichter Stand
@@ -37,7 +38,7 @@ Bildung, Leistungssport, Vielfalt**.
 ### Repo-Struktur (pnpm-Workspaces)
 ```
 apps/cms/          Payload 3.90 (Next.js 16) – Admin + REST-API
-apps/web/          (fehlt noch) Astro-Frontend
+apps/web/          Astro 7 – statische Website + Node-Server für /api/form (und später /preview)
 packages/shared/   AREAS, LOCALES, ROLES + generierte payload-types.ts
 docker/            cms.Dockerfile, compose.lab.yml, postgres-init.sh
 scripts/           deploy-lab.sh
@@ -70,6 +71,21 @@ docs/PLAN.md       dieses Dokument
   - Entwürfe sieht nur, wer angemeldet ist und den TOTP-Code bestätigt hat (`publishedOrVerified`).
 - **Admin-Oberfläche** auf Deutsch.
 - **Migrationen:** drei Stück in `apps/cms/src/migrations`. Sie laufen beim Containerstart automatisch (`prodMigrations`).
+- **Typen:** `payload-types.ts` wird mit `typescript.declare: false` erzeugt, damit das Frontend sie ohne Payload nutzen kann. Die Modul-Erweiterung für die Local API steht in `apps/cms/src/payload-generated.d.ts`.
+- **Beispielinhalte:** `pnpm seed` (in `apps/cms`) legt Seiten, Beiträge, Termine, Personen, Dokumente, Formular, Navigation und Footer in allen drei Sprachen an. `--force` löscht vorher. In `ccvb_dev` ist das bereits passiert.
+
+### Website `apps/web` (Phase 6/5 – Grundgerüst fertig, lokal getestet, noch nicht im Lab)
+- **Routing:** eine Route `src/pages/[...path].astro`; `src/lib/routes.ts` erzeugt alle URLs aller Sprachen aus den veröffentlichten Inhalten. Feste Bereiche je Sprache in `src/i18n/index.ts` (`aktuelles`/`news`, `termine`/`events`, `downloads`, `suche`/`search`, `danke`/`thank-you`). Startseite = Page mit Slug `home`.
+- **Sprachen:** `/`, `/leichte-sprache/…`, `/en/…`. Inhalte ohne Fassung werden nicht erzeugt, der Sprachumschalter zeigt nur vorhandene Fassungen, `hreflang` im Head. Verweist ein Link auf ein Ziel ohne Fassung in der aktuellen Sprache, zeigt er auf die deutsche Fassung. Leichte Sprache: `html.ls` (19 px, Zeilenabstand 1,75), UI-Texte in Leichter Sprache.
+- **Datenzugriff:** `src/lib/cms.ts` (REST, immer `locale` + `fallback-locale=none`, Anfragen werden pro Build gecacht).
+- **Rich Text:** eigener kleiner Renderer `components/RichText.astro` statt `convertLexicalToHTML` – kein Payload im Frontend, volle Kontrolle über Links (externe Links/neue Tabs werden für Screenreader angesagt). Eingebettete Blöcke: Bild, Akkordeon, Downloads.
+- **Alle 13 Blöcke** in `components/blocks/`. Listen-Blöcke fragen zur Build-Zeit ab (`lib/queries.ts`).
+- **Navigation:** Mega-Menü als Disclosure (APG) mit Escape/Fokus-Rückgabe; ohne JS normale Linklisten. Mobil Menü-Schalter.
+- **Downloads:** ohne JS nach Kategorie gruppiert; mit JS Filter (Kategorie, Bereich) mit Statusansage und URL-Parametern.
+- **Suche:** Pagefind Component UI (seit Pagefind 1.5 empfohlen, bessere ARIA-Unterstützung). Deutsch und Leichte Sprache teilen den Index `de`, getrennt über den Filter `sprache`.
+- **Formulare:** `src/pages/api/form.ts` (on demand) prüft gegen die Formulardefinition, Honeypot, Rate-Limit (5 pro 10 min und IP, im Speicher), legt den Formular-Eingang an und leitet auf `/danke/` bzw. das im Formular hinterlegte Ziel. Fehler ohne JS als einfache Fehlerseite.
+- **Bilder:** `<img srcset>` aus den Payload-WebP-Größen, Fokuspunkt als `object-position`. Medien-URL: `MEDIA_URL` (Caddy `/media/images|documents/…`) oder lokal die Datei-Route des CMS.
+- **Tests:** `pnpm test` in `apps/web` (Playwright gegen den Build, Desktop + Pixel 7): axe WCAG 2.2 AA für 18 Seitentypen/Sprachen, eine H1, Landmarks, Skip-Link, Sprachumschalter, Mega-Menü per Tastatur, ohne JS, Reflow 320 px, Download-Filter, Formular. Letzter Lauf: 92/92 bestanden.
 
 ### Lab-Umgebung `docker.fritz.box` (SSH: `root@docker.fritz.box`, LAN-IP 192.168.20.203)
 | Port | Dienst | Domain (NPM) | Status |
@@ -89,40 +105,16 @@ docs/PLAN.md       dieses Dokument
 
 ## 4. Offene Schritte
 
-Reihenfolge als Vorschlag. **Offene Frage an Franco vor Phase 6:** Sollen zuerst die Design-Grundlagen nach dem Vorbild cheersport.de (Farben, Schriften, Logo) abgestimmt werden, oder soll erst Struktur und Barrierefreiheit entstehen und das Design danach angeglichen werden?
+Reihenfolge als Vorschlag. **Als Nächstes: Phase 4** (Rebuild-Pipeline, Vorschau, Caddy), damit die Website im Lab läuft.
 
-### Phase 6 und 5: Astro-Frontend mit Sprachen (als Nächstes)
-1. `apps/web` anlegen:
-   - Astro 5 mit `output: 'static'` und `@astrojs/node` für die SSR-Routen `/preview/*` und `/api/form`
-   - Tailwind v4, Typen aus `@ccvb/shared/payload-types`
-2. Datenzugriff über einen kleinen REST-Client gegen `CMS_URL`:
-   - **Immer `locale=` und `fallback-locale=none` mitschicken** (siehe Stolperfallen)
-   - Veröffentlichte Inhalte sind ohne Anmeldung lesbar, der Build braucht also keinen Key.
-3. Rich Text mit `convertLexicalToHTML` aus `@payloadcms/richtext-lexical/html` zur Build-Zeit umwandeln. Eigene Konverter für interne Links und eingebettete Blöcke schreiben.
-4. Routen:
-   - `/` (Startseite = Page mit Slug `home` o. ä.)
-   - verschachtelte Seiten über die Breadcrumb-URL
-   - `/aktuelles` (Liste und Detail)
-   - `/termine`
-   - `/downloads` (Filter per GET-Formular)
-   - `/suche` (Pagefind)
-   - 404, Impressum, Datenschutz, **Erklärung zur Barrierefreiheit**
-5. Sprachen (i18n-Routing):
-   - `/` für Deutsch, `/leichte-sprache/…`, `/en/…`
-   - Seiten ohne Fassung in einer Sprache werden für diese Sprache nicht erzeugt.
-   - Der Sprachumschalter verlinkt nur vorhandene Fassungen.
-   - Leichte Sprache bekommt ein eigenes Layout: größere Schrift, mehr Zeilenabstand.
-6. Barrierefreiheit:
-   - Landmarks, Skip-Link, eine H1 pro Seite, sichtbarer Fokus, Kontrast ≥ 4,5:1
-   - `prefers-reduced-motion`, kein Autoplay, Reflow bei 320 px
-   - Mega-Menü als Disclosure-Pattern, das ohne JS als normale Linkliste funktioniert
-   - YouTube und Instagram mit 2-Klick-Lösung
-   - Schriften selbst gehostet
-7. Bilder über `<picture>` mit den Payload-Bildgrößen. `/media` liefert Caddy direkt aus dem Media-Volume aus.
-8. Formulare:
-   - Ein Astro-Endpunkt `POST /api/form` validiert die Eingaben, nutzt Honeypot und Rate-Limit und leitet an `form-submissions` weiter.
-   - Ohne JS gibt es eine normale Weiterleitung auf eine Danke-Seite.
-9. Tests mit Playwright und `@axe-core/playwright` für jeden Seitentyp.
+### Phase 6 und 5: Restpunkte Frontend
+- **Vorschau-Route** `/preview/<collection>/<id>` (SSR, Token prüfen, Entwürfe mit `CMS_API_KEY` über `draft=true` holen – `lib/cms.ts` kann das schon; Ansichten aus `src/views/` wiederverwenden, `noindex`). Gehört zu Phase 4, Dienstkonto mit Leserechten anlegen.
+- **2-Klick-Einbettung** für YouTube/Instagram: es gibt noch keinen Einbettungs-Block im CMS. Block anlegen (URL + Titel), Frontend-Komponente mit Platzhalter und Einwilligungs-Schalter (UI-Texte `embedConsent`/`embedNotice` liegen schon bereit).
+- **Formular-Bestätigung:** Die Danke-Seite ist allgemein; die formularspezifische `confirmationMessage` wird noch nicht angezeigt.
+- **Fehlerseite des Formulars** ist bewusst minimal (eigenes HTML). Später an das Layout angleichen.
+- **Sitemap** (`@astrojs/sitemap` oder eigene Route) und Open-Graph-Feinschliff.
+- **Design** nach Abstimmung angleichen (nur Tokens + Komponenten-Klassen). SVG-Logo besorgen.
+- Manueller Test mit Screenreader (VoiceOver/NVDA) und Tastatur – axe findet nur einen Teil der Probleme.
 
 ### Phase 4: Rebuild-Pipeline, Vorschau und Caddy (Port 8130)
 1. **Rebuild-Hook im CMS** (`afterChange`/`afterDelete` auf Pages, Posts, Events, People, Documents, Media, Categories, Header, Footer, Redirects):
@@ -130,7 +122,9 @@ Reihenfolge als Vorschlag. **Offene Frage an Franco vor Phase 6:** Sollen zuerst
    - nur bei Änderungen am veröffentlichten Stand, nicht bei Autosaves (`req.query.draft`/`autosave` beachten, siehe Stolperfallen)
 2. **Builder im `web`-Container:**
    - bündelt Anfragen (etwa 15 s Ruhezeit, nie zwei Builds parallel)
-   - führt `astro build` und danach `pagefind` aus
+   - führt `pnpm build` aus (= `astro build` + `pagefind --site dist/client`)
+   - **zusätzlich nächtlich**, damit vergangene Termine aus den Listen fallen (die Website ist statisch)
+   - Container mit `TZ=Europe/Berlin` (Datumslogik „heute“ in `lib/queries.ts`)
    - wechselt atomar per Symlink `www/current`
    - behält drei Builds für ein Rollback
    - erzeugt die Weiterleitungsdatei für Caddy aus `redirects`
@@ -143,6 +137,8 @@ Reihenfolge als Vorschlag. **Offene Frage an Franco vor Phase 6:** Sollen zuerst
    - Services `web` (Node 22, Astro-Quellcode) und `caddy` (Port 8130)
    - Volumes `www` und `media` (read-only in Caddy)
    - `X-Robots-Tag: noindex` auf beiden Lab-Domains
+   - Caddy leitet `/api/form` (und `/preview/*`) an den Node-Server (`node dist/server/entry.mjs`) weiter und muss `Host` sowie `X-Forwarded-Proto` durchreichen: Astro prüft bei POST den `Origin` (CSRF-Schutz), sonst kommt 403.
+   - `MEDIA_URL=/media` für den Build setzen; Caddy liefert `/media/images` und `/media/documents` aus dem Media-Volume
 6. Ausfalltest: `docker compose stop cms`. Website, Suche und Downloads funktionieren weiter.
 
 ### Phase 7: Restlicher Betrieb
@@ -182,7 +178,9 @@ Reihenfolge als Vorschlag. **Offene Frage an Franco vor Phase 6:** Sollen zuerst
 9. **Sichere Cookies im Lab:** Login nur über `https://ccvbcms.lab.code-ops.de`, nicht über `http://192.168.20.203:8131`.
 10. **Das macOS-`rsync` kennt kein `--chmod`.** Das Deploy-Skript nutzt deshalb `scp` und `chmod`.
 11. **Der Playwright-MCP schreibt nach `.playwright-mcp/`** im Repo. Der Ordner ist gitignored.
-12. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
+12. **Astro prüft bei POST-Anfragen den `Origin`.** Tests oder Skripte, die `/api/form` direkt aufrufen, brauchen einen passenden `Origin`-Header, sonst 403.
+13. **`next dev` legt `apps/cms/AGENTS.md` und `CLAUDE.md` an** (Hinweis auf Next 16). Beide sind gitignored.
+14. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
     - den Aufruf der Portainer-API mit dem Token aus `.env`. Für das Deployment wird stattdessen SSH genutzt.
     - einen Dev-Server-Neustart direkt nach dem Zurücksetzen der Dev-Datenbank. Vorher nachfragen.
 
@@ -198,6 +196,14 @@ pnpm generate:importmap                    # nach neuen Admin-Komponenten
 pnpm payload migrate:create <name>         # nach Schema-Änderungen (für das Lab)
 pnpm typecheck && pnpm lint
 node tests/api/review-workflow.mjs         # Workflow-Test (Dev-Server mit TOTP_DISABLED=true)
+pnpm seed                                  # Beispielinhalte (--force = neu anlegen)
+
+# Website (CMS muss laufen)
+cd apps/web
+pnpm dev                                   # http://localhost:4321 (ohne Suche – Index entsteht beim Build)
+pnpm build                                 # statisch nach dist/client + Pagefind
+pnpm typecheck                             # astro check
+pnpm test                                  # Playwright + axe gegen den Build (Port 4322)
 
 # Lab
 ./scripts/deploy-lab.sh            # kompletter Stack

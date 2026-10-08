@@ -1,0 +1,32 @@
+---
+import { LOCALES, t, type LocaleCode } from '@/i18n'
+import type { Alternates } from '@/lib/routes'
+
+type Props = { locale: LocaleCode; alternates: Alternates }
+const { locale, alternates } = Astro.props
+
+// Nur vorhandene Sprachfassungen verlinken. Die Bezeichnung steht in der jeweiligen Sprache.
+const items = LOCALES.filter(({ code }) => code === locale || alternates[code])
+---
+
+{
+  items.length > 1 && (
+    <nav aria-label={t(locale).languageSwitch}>
+      <ul class="flex flex-wrap gap-x-3 gap-y-1">
+        {items.map(({ code, label, htmlLang }) => (
+          <li>
+            {code === locale ? (
+              <span aria-current="true" class="font-bold">
+                {label}
+              </span>
+            ) : (
+              <a href={alternates[code]} lang={htmlLang} hreflang={htmlLang} class="text-ink no-underline hover:underline">
+                {label}
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

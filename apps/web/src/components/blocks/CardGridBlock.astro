@@ -1,0 +1,46 @@
+---
+import type { CardGridBlock } from '@ccvb/shared/payload-types'
+
+import Picture from '@/components/Picture.astro'
+import type { LocaleCode } from '@/i18n'
+import { resolveLink } from '@/lib/links'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: CardGridBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+// Ohne Blocküberschrift sind die Kacheln selbst H2, damit keine Ebene übersprungen wird.
+const CardHeading = block.heading ? 'h3' : 'h2'
+const cards = (block.cards ?? []).map((card) => ({ ...card, href: resolveLink(locale, card.link)?.href }))
+---
+
+<BlockHeading text={block.heading} />
+<ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  {
+    cards.map((card) => (
+      <li class="card relative flex flex-col overflow-hidden rounded border border-line bg-white">
+        {card.media && <Picture media={card.media} max="medium" sizes="(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw" class="aspect-[3/2] w-full object-cover" alt="" />}
+        <div class="flex flex-1 flex-col gap-2 border-t-4 border-brand p-5">
+          <CardHeading class="text-xl font-bold">
+            {card.href ? (
+              <a href={card.href} class="text-ink no-underline after:absolute after:inset-0 hover:underline">{card.title}</a>
+            ) : (
+              card.title
+            )}
+          </CardHeading>
+          {card.text && <p>{card.text}</p>}
+        </div>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .card:has(a:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .card a:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+</style>

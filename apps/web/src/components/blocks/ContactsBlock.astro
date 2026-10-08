@@ -1,0 +1,40 @@
+---
+import type { ContactsBlock, Person } from '@ccvb/shared/payload-types'
+
+import Picture from '@/components/Picture.astro'
+import { t, type LocaleCode } from '@/i18n'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: ContactsBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const ui = t(locale)
+const people = (block.people ?? []).filter((p): p is Person => typeof p === 'object')
+const NameHeading = block.heading ? 'h3' : 'h2'
+---
+
+<BlockHeading text={block.heading} />
+<ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  {
+    people.map((person) => (
+      <li class="flex gap-4 rounded border border-line p-4">
+        {person.photo && <Picture media={person.photo} max="thumbnail" sizes="6rem" class="size-24 shrink-0 rounded-full object-cover" alt="" />}
+        <div>
+          <NameHeading class="text-lg font-bold">{person.name}</NameHeading>
+          {person.role && <p class="text-muted">{person.role}</p>}
+          {person.email && (
+            <p>
+              <span class="sr-only">{ui.email}: </span>
+              <a href={`mailto:${person.email}`} class="break-all">{person.email}</a>
+            </p>
+          )}
+          {person.phone && (
+            <p>
+              <span class="sr-only">{ui.phone}: </span>
+              <a href={`tel:${person.phone.replace(/[^+\d]/g, '')}`}>{person.phone}</a>
+            </p>
+          )}
+        </div>
+      </li>
+    ))
+  }
+</ul>

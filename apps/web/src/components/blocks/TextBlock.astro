@@ -1,0 +1,11 @@
+---
+import type { TextBlock } from '@ccvb/shared/payload-types'
+
+import RichText from '@/components/RichText.astro'
+import type { LocaleCode } from '@/i18n'
+
+type Props = { block: TextBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+---
+
+<RichText data={block.content as any} locale={locale} />

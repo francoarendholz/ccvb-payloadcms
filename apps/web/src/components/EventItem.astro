@@ -1,0 +1,36 @@
+---
+import type { Event } from '@ccvb/shared/payload-types'
+
+import { formatDate, formatTime, isoDay, sectionPath, t, type LocaleCode } from '@/i18n'
+
+type Props = { event: Event; locale: LocaleCode; headingLevel?: 2 | 3 }
+const { event, locale, headingLevel = 3 } = Astro.props
+const ui = t(locale)
+const Heading = `h${headingLevel}` as 'h3'
+const href = sectionPath(locale, 'events', event.slug)
+
+const start = event.startDate
+const end = event.endDate
+const sameDay = !end || isoDay(start) === isoDay(end)
+const day = new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'de-DE', { day: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(start))
+const month = new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'de-DE', { month: 'short', timeZone: 'Europe/Berlin' }).format(new Date(start))
+const location = [event.location?.name, event.location?.address].filter(Boolean).join(', ')
+---
+
+<article class="relative flex gap-4 border-b border-line py-4">
+  <div class="flex w-16 shrink-0 flex-col items-center justify-center rounded bg-brand-tint py-2 text-brand-dark" aria-hidden="true">
+    <span class="text-2xl leading-none font-bold">{day}</span>
+    <span class="text-sm uppercase">{month}</span>
+  </div>
+  <div>
+    <Heading class="text-lg leading-snug font-bold">
+      <a href={href} class="text-ink no-underline hover:underline">{event.title}</a>
+    </Heading>
+    <p class="text-muted">
+      <time datetime={isoDay(start)}>{formatDate(locale, start, { weekday: 'short' })}</time>
+      {!sameDay && end && <> – <time datetime={isoDay(end)}>{formatDate(locale, end, { weekday: 'short' })}</time></>}
+      {!event.allDay && sameDay && <>, {formatTime(locale, start)}</>}
+    </p>
+    {location && <p><span class="sr-only">{ui.location}: </span>{location}</p>}
+  </div>
+</article>

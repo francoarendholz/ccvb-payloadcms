@@ -1,0 +1,39 @@
+---
+import type { Page } from '@ccvb/shared/payload-types'
+
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import PageTitle from '@/components/PageTitle.astro'
+import Picture from '@/components/Picture.astro'
+import RenderBlocks from '@/components/RenderBlocks.astro'
+import { localePath, t, type LocaleCode } from '@/i18n'
+import { HOME_SLUG } from '@/lib/links'
+
+type Props = { doc: Page; locale: LocaleCode }
+const { doc, locale } = Astro.props
+const hero = doc.hero
+const crumbs = [
+  { href: localePath(locale), label: t(locale).home },
+  ...(doc.breadcrumbs ?? []).map((c) => ({ href: localePath(locale, c.url), label: c.label ?? '' })),
+]
+const isHome = doc.slug === HOME_SLUG
+---
+
+{!isHome && <Breadcrumbs locale={locale} items={crumbs} />}
+
+{
+  hero?.type === 'image' && hero.media ? (
+    <div class="relative">
+      <Picture media={hero.media} loading="eager" sizes="100vw" class="h-[clamp(14rem,45vw,32rem)] w-full object-cover" />
+      <div class="container-page relative -mt-16 md:-mt-24">
+        <div class="max-w-3xl bg-white p-6 shadow-lg md:p-10">
+          <h1 class="text-3xl leading-tight font-bold md:text-5xl">{doc.title}</h1>
+          {hero.intro && <p class="mt-4 text-lg md:text-xl">{hero.intro}</p>}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <PageTitle title={doc.title} intro={hero?.intro} />
+  )
+}
+
+<RenderBlocks blocks={doc.layout} locale={locale} />

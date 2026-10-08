@@ -1,0 +1,37 @@
+---
+import EventItem from '@/components/EventItem.astro'
+import PageTitle from '@/components/PageTitle.astro'
+import { t, type LocaleCode } from '@/i18n'
+import { pastEvents, upcomingEvents } from '@/lib/queries'
+
+type Props = { locale: LocaleCode }
+const { locale } = Astro.props
+const ui = t(locale)
+const [upcoming, past] = await Promise.all([upcomingEvents({ locale }), pastEvents({ locale })])
+---
+
+<PageTitle title={ui.events} />
+<div class="container-page mt-8 max-w-(--container-page)">
+  <section aria-labelledby="kommende" class="max-w-(--container-content)">
+    <h2 id="kommende" class="heading-section">{ui.upcoming}</h2>
+    {
+      upcoming.length === 0 ? (
+        <p>{ui.noEvents}</p>
+      ) : (
+        <ul class="border-t border-line">
+          {upcoming.map((event) => <li><EventItem event={event} locale={locale} /></li>)}
+        </ul>
+      )
+    }
+  </section>
+  {
+    past.length > 0 && (
+      <section aria-labelledby="vergangen" class="mt-16 max-w-(--container-content)">
+        <h2 id="vergangen" class="heading-section">{ui.past}</h2>
+        <ul class="border-t border-line">
+          {past.map((event) => <li><EventItem event={event} locale={locale} /></li>)}
+        </ul>
+      </section>
+    )
+  }
+</div>

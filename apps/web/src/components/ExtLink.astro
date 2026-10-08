@@ -1,0 +1,27 @@
+---
+import { t, type LocaleCode } from '@/i18n'
+import { isExternal } from '@/lib/links'
+
+/**
+ * Link, der externe Ziele und neue Tabs für Screenreader kenntlich macht.
+ * Neue Tabs nur, wenn die Redaktion das ausdrücklich gewählt hat.
+ */
+type Props = {
+  href: string
+  locale: LocaleCode
+  newTab?: boolean
+  class?: string
+  [key: string]: unknown
+}
+const { href, locale, newTab = false, class: className, ...rest } = Astro.props
+const ui = t(locale)
+const external = isExternal(href)
+---
+
+<a
+  href={href}
+  class={className}
+  target={newTab ? '_blank' : undefined}
+  rel={external ? 'noopener noreferrer' : undefined}
+  {...rest}
+><slot />{external && <span class="sr-only"> {ui.externalLink}</span>}{newTab && <span class="sr-only"> {ui.newTab}</span>}</a>

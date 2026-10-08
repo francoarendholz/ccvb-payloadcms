@@ -1,0 +1,23 @@
+---
+import type { GalleryBlock } from '@ccvb/shared/payload-types'
+
+import Picture from '@/components/Picture.astro'
+import type { LocaleCode } from '@/i18n'
+import { resolved } from '@/lib/cms'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: GalleryBlock; locale: LocaleCode }
+const { block } = Astro.props
+const images = (block.images ?? []).map((m) => resolved(m)).filter((m) => m !== null)
+---
+
+<BlockHeading text={block.heading} />
+<ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+  {
+    images.map((media) => (
+      <li>
+        <Picture media={media} max="medium" sizes="(min-width: 64rem) 25vw, (min-width: 48rem) 33vw, 50vw" class="aspect-square w-full rounded object-cover" />
+      </li>
+    ))
+  }
+</ul>

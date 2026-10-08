@@ -1,0 +1,41 @@
+---
+import type { Media } from '@ccvb/shared/payload-types'
+
+import { resolved } from '@/lib/cms'
+import { imageSources, type ImageSize } from '@/lib/media'
+
+type Props = {
+  media: Media | number | null | undefined
+  /** `sizes`-Attribut, z. B. "(min-width: 48rem) 50vw, 100vw" */
+  sizes?: string
+  max?: ImageSize
+  /** Abweichender Alternativtext (z. B. Logo-Name). Leerer String = dekorativ. */
+  alt?: string
+  loading?: 'lazy' | 'eager'
+  class?: string
+}
+
+const { media: value, sizes = '100vw', max = 'xlarge', alt, loading = 'lazy', class: className } = Astro.props
+const media = resolved(value)
+const sources = media ? imageSources(media, max) : []
+const largest = sources.at(-1)
+// Fokuspunkt aus dem CMS für object-fit: cover
+const position = media?.focalX != null && media?.focalY != null ? `${media.focalX}% ${media.focalY}%` : undefined
+---
+
+{
+  media && largest && (
+    <img
+      src={largest.src}
+      srcset={sources.length > 1 ? sources.map((s) => `${s.src} ${s.width}w`).join(', ') : undefined}
+      sizes={sources.length > 1 ? sizes : undefined}
+      width={largest.width || undefined}
+      height={largest.height || undefined}
+      alt={alt ?? media.alt ?? ''}
+      loading={loading}
+      decoding="async"
+      class={className}
+      style={position ? `object-position: ${position}` : undefined}
+    />
+  )
+}

@@ -1,0 +1,37 @@
+---
+import type { Post } from '@ccvb/shared/payload-types'
+
+import { formatDate, isoDay, sectionPath, type LocaleCode } from '@/i18n'
+import Picture from './Picture.astro'
+
+type Props = { post: Post; locale: LocaleCode; headingLevel?: 2 | 3 }
+const { post, locale, headingLevel = 3 } = Astro.props
+const Heading = `h${headingLevel}` as 'h3'
+const href = sectionPath(locale, 'posts', post.slug)
+---
+
+<article class="group relative flex h-full flex-col overflow-hidden rounded border border-line bg-white">
+  {
+    post.heroImage && (
+      <Picture media={post.heroImage} max="medium" sizes="(min-width: 64rem) 33vw, (min-width: 40rem) 50vw, 100vw" class="aspect-[3/2] w-full object-cover" alt="" />
+    )
+  }
+  <div class="flex flex-1 flex-col gap-2 p-5">
+    <Heading class="text-xl leading-snug font-bold">
+      <a href={href} class="text-ink no-underline group-hover:underline after:absolute after:inset-0">{post.title}</a>
+    </Heading>
+    {post.publishedAt && <p class="order-first text-sm text-muted"><time datetime={isoDay(post.publishedAt)}>{formatDate(locale, post.publishedAt)}</time></p>}
+    {post.excerpt && <p>{post.excerpt}</p>}
+  </div>
+</article>
+
+<style>
+  article:has(a:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  a:focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+</style>

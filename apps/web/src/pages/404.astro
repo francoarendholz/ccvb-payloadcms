@@ -1,0 +1,22 @@
+---
+import PageTitle from '@/components/PageTitle.astro'
+import { localePath, sectionPath, t } from '@/i18n'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+
+const ui = t('de')
+const en = t('en')
+---
+
+<BaseLayout locale="de" title={ui.notFoundTitle} noindex searchable={false}>
+  <PageTitle title={ui.notFoundTitle} intro={ui.notFoundText}>
+    <ul class="mt-8 flex flex-wrap gap-4">
+      <li><a href={localePath('de')} class="btn btn-primary">{ui.backHome}</a></li>
+      <li><a href={sectionPath('de', 'search')} class="btn btn-secondary">{ui.search}</a></li>
+    </ul>
+    <div lang="en" class="mt-12 border-t border-line pt-6">
+      <h2 class="text-xl font-bold">{en.notFoundTitle}</h2>
+      <p class="mt-2">{en.notFoundText}</p>
+      <p class="mt-4"><a href={localePath('en')}>{en.backHome}</a></p>
+    </div>
+  </PageTitle>
+</BaseLayout>

@@ -1,0 +1,14 @@
+---
+/** Blöcke, die im Fließtext von Beiträgen und Terminen eingebettet sind. */
+import type { LocaleCode } from '@/i18n'
+import AccordionBlock from './AccordionBlock.astro'
+import DocumentsListBlock from './DocumentsListBlock.astro'
+import ImageBlock from './ImageBlock.astro'
+
+type Props = { block: { blockType: string; [key: string]: unknown }; locale: LocaleCode }
+const { block, locale } = Astro.props
+const components: Record<string, (props: any) => any> = { image: ImageBlock, accordion: AccordionBlock, documentsList: DocumentsListBlock }
+const Component = components[block.blockType]
+---
+
+{Component && <div class="not-prose my-8"><Component block={block as any} locale={locale} /></div>}

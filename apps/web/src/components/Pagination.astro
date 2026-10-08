@@ -1,0 +1,31 @@
+---
+import { t, type LocaleCode } from '@/i18n'
+
+type Props = { locale: LocaleCode; page: number; totalPages: number; hrefFor: (page: number) => string }
+const { locale, page, totalPages, hrefFor } = Astro.props
+const ui = t(locale)
+---
+
+{
+  totalPages > 1 && (
+    <nav aria-label={ui.pagination} class="mt-10">
+      <ul class="flex flex-wrap items-center gap-2">
+        {page > 1 && (
+          <li><a href={hrefFor(page - 1)} class="btn btn-secondary">{ui.previous}</a></li>
+        )}
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+          <li>
+            {n === page ? (
+              <span aria-current="page" class="btn btn-primary"><span class="sr-only">{ui.page(n, totalPages)}</span><span aria-hidden="true">{n}</span></span>
+            ) : (
+              <a href={hrefFor(n)} class="btn btn-secondary"><span class="sr-only">{ui.page(n, totalPages)}</span><span aria-hidden="true">{n}</span></a>
+            )}
+          </li>
+        ))}
+        {page < totalPages && (
+          <li><a href={hrefFor(page + 1)} class="btn btn-secondary">{ui.next}</a></li>
+        )}
+      </ul>
+    </nav>
+  )
+}

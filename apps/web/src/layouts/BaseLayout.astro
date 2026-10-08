@@ -1,0 +1,74 @@
+---
+import '@/styles/global.css'
+
+import type { Media } from '@ccvb/shared/payload-types'
+
+import SiteFooter from '@/components/SiteFooter.astro'
+import SiteHeader from '@/components/SiteHeader.astro'
+import { LOCALES, localeInfo, t, type LocaleCode } from '@/i18n'
+import { ogImage } from '@/lib/media'
+import type { Alternates } from '@/lib/routes'
+
+type Props = {
+  locale: LocaleCode
+  title: string
+  description?: string | null
+  image?: Media | null
+  alternates?: Alternates
+  noindex?: boolean
+  /** Für Pagefind: Inhalte (z. B. Übersichten) nicht in den Suchindex aufnehmen. */
+  searchable?: boolean
+}
+
+const { locale, title, description, image, alternates = {}, noindex = false, searchable = true } = Astro.props
+const ui = t(locale)
+const info = localeInfo(locale)
+const site = Astro.site ?? new URL(Astro.url.origin)
+const canonical = new URL(Astro.url.pathname, site).href
+const fullTitle = title === ui.siteShort ? `${ui.siteShort} – ${ui.siteName}` : `${title} | ${ui.siteShort}`
+const og = ogImage(image)
+---
+
+<!doctype html>
+<html lang={info.htmlLang} class:list={['no-js', { ls: locale === 'ls' }]}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="canonical" href={canonical} />
+    {
+      LOCALES.filter(({ code }) => alternates[code]).map(({ code, htmlLang }) => (
+        <link
+          rel="alternate"
+          hreflang={code === 'ls' ? 'de-x-ls' : htmlLang}
+          href={new URL(alternates[code]!, site).href}
+        />
+      ))
+    }
+    <meta property="og:title" content={title} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    {description && <meta property="og:description" content={description} />}
+    {og && <meta property="og:image" content={og} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      document.documentElement.classList.replace('no-js', 'js')
+    </script>
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <a
+      href="#inhalt"
+      class="sr-only-focusable fixed top-2 left-2 z-50 rounded bg-ink px-4 py-3 font-semibold text-white"
+    >
+      {ui.skipLink}
+    </a>
+    <SiteHeader locale={locale} alternates={alternates} currentPath={Astro.url.pathname} />
+    <main id="inhalt" tabindex="-1" class="flex-1 focus:outline-none" data-pagefind-body={searchable ? '' : undefined}>
+      {searchable && <span hidden data-pagefind-filter={`sprache:${locale}`} />}
+      <slot />
+    </main>
+    <SiteFooter locale={locale} />
+  </body>
+</html>

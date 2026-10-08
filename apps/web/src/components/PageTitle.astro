@@ -1,0 +1,11 @@
+---
+/** Die einzige H1 einer Seite, optional mit Einleitung. */
+type Props = { title: string; intro?: string | null }
+const { title, intro } = Astro.props
+---
+
+<div class="container-page pt-8 pb-2">
+  <h1 class="max-w-4xl text-3xl leading-tight font-bold md:text-5xl">{title}</h1>
+  {intro && <p class="mt-4 max-w-(--container-content) text-lg md:text-xl">{intro}</p>}
+  <slot />
+</div>

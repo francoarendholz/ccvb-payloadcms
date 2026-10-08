@@ -1,0 +1,75 @@
+---
+/**
+ * Eine Route für alle statischen Seiten aller Sprachen (`/`, `/leichte-sprache/…`, `/en/…`).
+ * Welche URLs entstehen, legt `buildRoutes()` anhand der veröffentlichten CMS-Inhalte fest.
+ */
+import type { GetStaticPaths } from 'astro'
+
+import { t } from '@/i18n'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import { resolved } from '@/lib/cms'
+import { loadPagePaths } from '@/lib/links'
+import { buildRoutes, type RouteProps } from '@/lib/routes'
+import Downloads from '@/views/Downloads.astro'
+import EventIndex from '@/views/EventIndex.astro'
+import EventView from '@/views/EventView.astro'
+import PageView from '@/views/PageView.astro'
+import PostIndex from '@/views/PostIndex.astro'
+import PostView from '@/views/PostView.astro'
+import Search from '@/views/Search.astro'
+import Thanks from '@/views/Thanks.astro'
+
+export const getStaticPaths = (async () => buildRoutes()) satisfies GetStaticPaths
+
+const { locale, route, alternates } = Astro.props as RouteProps
+await loadPagePaths()
+const ui = t(locale)
+
+const meta = (() => {
+  switch (route.kind) {
+    case 'page':
+    case 'post':
+    case 'event': {
+      const doc = route.doc
+      const excerpt = 'excerpt' in doc ? doc.excerpt : 'hero' in doc ? doc.hero?.intro : null
+      return {
+        title: doc.slug === 'home' ? ui.siteShort : doc.meta?.title?.replace(/ \| .*$/, '') || doc.title,
+        description: doc.meta?.description || excerpt,
+        image: resolved(doc.meta?.image) ?? resolved('heroImage' in doc ? doc.heroImage : 'hero' in doc ? doc.hero?.media : null),
+      }
+    }
+    case 'postIndex':
+      return { title: route.page > 1 ? `${ui.posts} – ${ui.page(route.page, route.totalPages)}` : ui.posts }
+    case 'eventIndex':
+      return { title: ui.events }
+    case 'downloads':
+      return { title: ui.downloads }
+    case 'search':
+      return { title: ui.search }
+    case 'thanks':
+      return { title: ui.thanksTitle }
+  }
+})()
+
+// Übersichten, Suche und Danke-Seite gehören nicht in den Suchindex.
+const searchable = ['page', 'post', 'event'].includes(route.kind)
+---
+
+<BaseLayout
+  locale={locale}
+  title={meta.title}
+  description={meta.description}
+  image={meta.image}
+  alternates={alternates}
+  searchable={searchable}
+  noindex={route.kind === 'thanks'}
+>
+  {route.kind === 'page' && <PageView doc={route.doc} locale={locale} />}
+  {route.kind === 'post' && <PostView doc={route.doc} locale={locale} />}
+  {route.kind === 'event' && <EventView doc={route.doc} locale={locale} />}
+  {route.kind === 'postIndex' && <PostIndex locale={locale} posts={route.posts} page={route.page} totalPages={route.totalPages} />}
+  {route.kind === 'eventIndex' && <EventIndex locale={locale} />}
+  {route.kind === 'downloads' && <Downloads locale={locale} />}
+  {route.kind === 'search' && <Search locale={locale} />}
+  {route.kind === 'thanks' && <Thanks locale={locale} />}
+</BaseLayout>

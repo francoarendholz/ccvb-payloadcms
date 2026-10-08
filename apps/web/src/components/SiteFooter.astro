@@ -1,0 +1,93 @@
+---
+import { t, type LocaleCode } from '@/i18n'
+import { getGlobal } from '@/lib/cms'
+import { resolveLink } from '@/lib/links'
+import ExtLink from './ExtLink.astro'
+
+type Props = { locale: LocaleCode }
+const { locale } = Astro.props
+const ui = t(locale)
+
+const footer = await getGlobal('footer', locale)
+const contact = footer.contact
+const links = (footer.links ?? []).map((l) => resolveLink(locale, l.link)).filter((l) => l !== null)
+const social = footer.social ?? []
+const PLATFORMS: Record<string, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+}
+---
+
+<footer class="mt-16 bg-ink text-white">
+  <div class="container-page grid gap-10 py-12 md:grid-cols-3">
+    <section aria-labelledby="footer-kontakt">
+      <h2 id="footer-kontakt" class="mb-3 text-lg font-bold">{ui.contact}</h2>
+      <address class="not-italic">
+        {contact?.organization && <p class="font-semibold">{contact.organization}</p>}
+        {contact?.address && <p class="whitespace-pre-line">{contact.address}</p>}
+        {
+          contact?.email && (
+            <p class="mt-2">
+              {ui.email}: <a href={`mailto:${contact.email}`} class="text-white">{contact.email}</a>
+            </p>
+          )
+        }
+        {
+          contact?.phone && (
+            <p>
+              {ui.phone}: <a href={`tel:${contact.phone.replace(/[^+\d]/g, '')}`} class="text-white">{contact.phone}</a>
+            </p>
+          )
+        }
+      </address>
+    </section>
+
+    {
+      social.length > 0 && (
+        <section aria-labelledby="footer-social">
+          <h2 id="footer-social" class="mb-3 text-lg font-bold">{ui.socialMedia}</h2>
+          <ul class="space-y-1">
+            {social.map((s) => (
+              <li>
+                <ExtLink href={s.url} locale={locale} class="text-white">
+                  {PLATFORMS[s.platform] ?? s.platform}
+                </ExtLink>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      links.length > 0 && (
+        <nav aria-label={ui.footerNav}>
+          <ul class="space-y-1">
+            {links.map((l) => (
+              <li>
+                <ExtLink href={l.href} newTab={l.newTab} locale={locale} class="text-white">
+                  {l.label}
+                </ExtLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </div>
+  <div class="border-t border-white/30">
+    <p class="container-page py-4 text-sm">© {new Date().getFullYear()} {contact?.organization ?? ui.siteName}</p>
+  </div>
+</footer>
+
+<style>
+  footer a:hover {
+    color: white;
+  }
+  footer :focus-visible {
+    outline-color: white;
+    box-shadow: 0 0 0 5px var(--color-ink);
+  }
+</style>

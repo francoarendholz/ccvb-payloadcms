@@ -1,0 +1,20 @@
+---
+import type { Document, DocumentsListBlock } from '@ccvb/shared/payload-types'
+
+import DocumentList from '@/components/DocumentList.astro'
+import type { LocaleCode } from '@/i18n'
+import { documents } from '@/lib/queries'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: DocumentsListBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const docs =
+  block.populateBy === 'selection'
+    ? (block.documents ?? []).filter((d): d is Document => typeof d === 'object' && Boolean(d.title))
+    : await documents({ locale, area: block.area, categories: block.categories as any })
+---
+
+<div class="max-w-(--container-content)">
+  <BlockHeading text={block.heading} />
+  <DocumentList docs={docs} locale={locale} />
+</div>

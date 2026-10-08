@@ -1,0 +1,7 @@
+---
+/** Blocküberschriften sind immer H2 (die H1 vergibt die Seite). */
+type Props = { text?: string | null; id?: string }
+const { text, id } = Astro.props
+---
+
+{text && <h2 id={id} class="heading-section">{text}</h2>}

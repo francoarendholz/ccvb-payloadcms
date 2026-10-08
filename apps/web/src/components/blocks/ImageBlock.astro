@@ -1,0 +1,27 @@
+---
+import type { ImageBlock } from '@ccvb/shared/payload-types'
+
+import Picture from '@/components/Picture.astro'
+import { t, type LocaleCode } from '@/i18n'
+import { resolved } from '@/lib/cms'
+
+type Props = { block: ImageBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const media = resolved(block.media)
+const wide = block.width === 'wide'
+const credit = media?.credit
+---
+
+{
+  media && (
+    <figure class:list={[wide ? 'max-w-none' : 'max-w-(--container-content)']}>
+      <Picture media={media} sizes={wide ? '100vw' : '(min-width: 48rem) 46rem, 100vw'} max={wide ? 'xlarge' : 'large'} class="h-auto w-full rounded" />
+      {(block.caption || credit) && (
+        <figcaption class="mt-2 text-sm text-muted">
+          {block.caption}
+          {credit && <span class="block">{t(locale).imageCredit}: {credit}</span>}
+        </figcaption>
+      )}
+    </figure>
+  )
+}

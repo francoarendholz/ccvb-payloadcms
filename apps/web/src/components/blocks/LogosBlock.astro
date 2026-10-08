@@ -1,0 +1,28 @@
+---
+import type { LogosBlock } from '@ccvb/shared/payload-types'
+
+import ExtLink from '@/components/ExtLink.astro'
+import Picture from '@/components/Picture.astro'
+import type { LocaleCode } from '@/i18n'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: LogosBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+---
+
+<BlockHeading text={block.heading} />
+<ul class="flex flex-wrap items-center gap-x-10 gap-y-6">
+  {
+    (block.logos ?? []).map((logo) => (
+      <li>
+        {logo.url ? (
+          <ExtLink href={logo.url} locale={locale} class="block">
+            <Picture media={logo.logo} alt={logo.name} max="small" sizes="10rem" class="h-16 w-auto max-w-40 object-contain" />
+          </ExtLink>
+        ) : (
+          <Picture media={logo.logo} alt={logo.name} max="small" sizes="10rem" class="h-16 w-auto max-w-40 object-contain" />
+        )}
+      </li>
+    ))
+  }
+</ul>

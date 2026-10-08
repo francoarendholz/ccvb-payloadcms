@@ -1,0 +1,30 @@
+---
+import type { Post } from '@ccvb/shared/payload-types'
+
+import PageTitle from '@/components/PageTitle.astro'
+import Pagination from '@/components/Pagination.astro'
+import PostCard from '@/components/PostCard.astro'
+import { sectionPath, t, type LocaleCode } from '@/i18n'
+import { pageSegment } from '@/lib/routes'
+
+type Props = { locale: LocaleCode; posts: Post[]; page: number; totalPages: number }
+const { locale, posts, page, totalPages } = Astro.props
+const ui = t(locale)
+const hrefFor = (n: number) => (n === 1 ? sectionPath(locale, 'posts') : sectionPath(locale, 'posts', pageSegment(locale), String(n)))
+---
+
+<PageTitle title={page > 1 ? `${ui.posts} – ${ui.page(page, totalPages)}` : ui.posts} />
+<div class="container-page mt-8">
+  {
+    posts.length === 0 ? (
+      <p>{ui.noPosts}</p>
+    ) : (
+      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {posts.map((post) => (
+          <li><PostCard post={post} locale={locale} headingLevel={2} /></li>
+        ))}
+      </ul>
+    )
+  }
+  <Pagination locale={locale} page={page} totalPages={totalPages} hrefFor={hrefFor} />
+</div>

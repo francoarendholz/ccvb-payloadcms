@@ -1,0 +1,65 @@
+---
+import type { Document, Event } from '@ccvb/shared/payload-types'
+
+import Breadcrumbs from '@/components/Breadcrumbs.astro'
+import DocumentList from '@/components/DocumentList.astro'
+import ExtLink from '@/components/ExtLink.astro'
+import Picture from '@/components/Picture.astro'
+import RichText from '@/components/RichText.astro'
+import { AREA_LABELS, formatDate, formatTime, isoDay, localePath, sectionPath, t, type LocaleCode } from '@/i18n'
+
+type Props = { doc: Event; locale: LocaleCode }
+const { doc, locale } = Astro.props
+const ui = t(locale)
+const start = doc.startDate
+const end = doc.endDate
+const sameDay = !end || isoDay(start) === isoDay(end)
+const location = [doc.location?.name, doc.location?.address].filter(Boolean)
+const docs = (doc.documents ?? []).filter((d): d is Document => typeof d === 'object' && Boolean(d.title))
+const deadlinePassed = doc.registrationDeadline && new Date(doc.registrationDeadline) < new Date()
+---
+
+<Breadcrumbs
+  locale={locale}
+  items={[
+    { href: localePath(locale), label: ui.home },
+    { href: sectionPath(locale, 'events'), label: ui.events },
+    { label: doc.title },
+  ]}
+/>
+
+<article class="container-page pt-8">
+  <div class="max-w-(--container-content)">
+    <h1 class="text-3xl leading-tight font-bold md:text-5xl">{doc.title}</h1>
+    {doc.excerpt && <p class="mt-4 text-lg md:text-xl">{doc.excerpt}</p>}
+
+    <dl class="mt-8 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 rounded bg-surface p-6">
+      <dt class="font-semibold">{ui.date}</dt>
+      <dd>
+        <time datetime={isoDay(start)}>{formatDate(locale, start, { weekday: 'long' })}</time>
+        {!sameDay && end && <> – <time datetime={isoDay(end)}>{formatDate(locale, end, { weekday: 'long' })}</time></>}
+      </dd>
+      <dt class="font-semibold">{ui.time}</dt>
+      <dd>{doc.allDay ? ui.allDay : sameDay && end ? `${formatTime(locale, start)} – ${formatTime(locale, end)}` : formatTime(locale, start)}</dd>
+      {location.length > 0 && <><dt class="font-semibold">{ui.location}</dt><dd>{location.join(', ')}</dd></>}
+      {doc.area && <><dt class="font-semibold">{ui.area}</dt><dd>{AREA_LABELS[locale][doc.area]}</dd></>}
+      {doc.registrationDeadline && <><dt class="font-semibold">{ui.registrationDeadline}</dt><dd><time datetime={isoDay(doc.registrationDeadline)}>{formatDate(locale, doc.registrationDeadline)}</time></dd></>}
+    </dl>
+
+    {doc.registrationUrl && !deadlinePassed && (
+      <p class="mt-6"><ExtLink href={doc.registrationUrl} locale={locale} class="btn btn-primary">{ui.registration}</ExtLink></p>
+    )}
+  </div>
+
+  {doc.heroImage && <Picture media={doc.heroImage} sizes="(min-width: 64rem) 56rem, 100vw" class="mt-8 h-auto w-full max-w-4xl rounded" />}
+
+  <RichText data={doc.description as any} locale={locale} class="mt-8" />
+
+  {docs.length > 0 && (
+    <section class="mt-12 max-w-(--container-content)" aria-labelledby="termin-dokumente">
+      <h2 id="termin-dokumente" class="heading-section">{ui.documents}</h2>
+      <DocumentList docs={docs} locale={locale} />
+    </section>
+  )}
+  <p class="mt-12"><a href={sectionPath(locale, 'events')} class="font-semibold">{ui.allEvents}</a></p>
+</article>

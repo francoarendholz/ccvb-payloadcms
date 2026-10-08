@@ -1,0 +1,31 @@
+---
+import type { EventsListBlock } from '@ccvb/shared/payload-types'
+
+import EventItem from '@/components/EventItem.astro'
+import { sectionPath, t, type LocaleCode } from '@/i18n'
+import { upcomingEvents } from '@/lib/queries'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: EventsListBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const ui = t(locale)
+const events = await upcomingEvents({ locale, area: block.area, limit: block.limit ?? 5 })
+---
+
+<div class="max-w-(--container-content)">
+  <BlockHeading text={block.heading} />
+  {
+    events.length === 0 ? (
+      <p>{ui.noEvents}</p>
+    ) : (
+      <ul class="border-t border-line">
+        {events.map((event) => (
+          <li>
+            <EventItem event={event} locale={locale} headingLevel={block.heading ? 3 : 2} />
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  <p class="mt-6"><a href={sectionPath(locale, 'events')} class="font-semibold">{ui.allEvents}</a></p>
+</div>

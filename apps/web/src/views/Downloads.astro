@@ -1,0 +1,92 @@
+---
+import type { Category } from '@ccvb/shared/payload-types'
+
+import DocumentList from '@/components/DocumentList.astro'
+import PageTitle from '@/components/PageTitle.astro'
+import { AREA_LABELS, t, type LocaleCode } from '@/i18n'
+import { findAll, hasLocale } from '@/lib/cms'
+import { documents } from '@/lib/queries'
+
+type Props = { locale: LocaleCode }
+const { locale } = Astro.props
+const ui = t(locale)
+
+const [docs, categories] = await Promise.all([
+  documents({ locale }),
+  findAll('categories', { locale, depth: 0, sort: 'title', where: { type: { equals: 'documents' } } }),
+])
+const categoryOf = (d: (typeof docs)[number]) => (typeof d.category === 'object' ? (d.category as Category | null) : null)
+const groups = [
+  ...categories.filter(hasLocale).map((c) => ({ id: c.slug, title: c.title, docs: docs.filter((d) => categoryOf(d)?.id === c.id) })),
+  { id: 'sonstige', title: ui.all, docs: docs.filter((d) => !categoryOf(d)) },
+].filter((g) => g.docs.length > 0)
+const areas = Object.entries(AREA_LABELS[locale]).filter(([value]) => docs.some((d) => d.area === value))
+---
+
+<PageTitle title={ui.downloads} />
+<div class="container-page mt-8">
+  {/* Filter: erst mit JavaScript sichtbar. Ohne JS sind alle Dokumente nach Kategorie gruppiert. */}
+  <form id="download-filter" class="mb-10 flex flex-wrap items-end gap-4 rounded bg-surface p-5" hidden>
+    <div>
+      <label for="filter-category" class="mb-1 block font-semibold">{ui.category}</label>
+      <select id="filter-category" name="kategorie" class="rounded border-2 border-muted bg-white px-3 py-2">
+        <option value="">{ui.all}</option>
+        {groups.filter((g) => g.id !== 'sonstige').map((g) => <option value={g.id}>{g.title}</option>)}
+      </select>
+    </div>
+    {areas.length > 0 && (
+      <div>
+        <label for="filter-area" class="mb-1 block font-semibold">{ui.area}</label>
+        <select id="filter-area" name="bereich" class="rounded border-2 border-muted bg-white px-3 py-2">
+          <option value="">{ui.all}</option>
+          {areas.map(([value, label]) => <option value={value}>{label}</option>)}
+        </select>
+      </div>
+    )}
+    <button type="reset" class="btn btn-secondary">{ui.resetFilter}</button>
+    <p id="filter-status" role="status" class="w-full text-sm"></p>
+  </form>
+
+  {groups.length === 0 && <p>{ui.noDocuments}</p>}
+  {groups.map((group) => (
+    <section class="download-group mb-12 max-w-(--container-content)" data-group={group.id} aria-labelledby={`gruppe-${group.id}`}>
+      <h2 id={`gruppe-${group.id}`} class="heading-section">{group.title}</h2>
+      <DocumentList docs={group.docs} locale={locale} />
+    </section>
+  ))}
+</div>
+
+<script define:vars={{ countLabel: locale === 'en' ? ['document', 'documents'] : ['Dokument', 'Dokumente'] }}>
+  const form = document.getElementById('download-filter')
+  const status = document.getElementById('filter-status')
+  const groups = [...document.querySelectorAll('.download-group')]
+  if (form) {
+    form.hidden = false
+    const params = new URLSearchParams(location.search)
+    for (const el of form.elements) if (el.name && params.has(el.name)) el.value = params.get(el.name)
+
+    const apply = () => {
+      const category = form.elements.namedItem('kategorie')?.value ?? ''
+      const area = form.elements.namedItem('bereich')?.value ?? ''
+      let count = 0
+      for (const group of groups) {
+        let visible = 0
+        for (const item of group.querySelectorAll('li[data-area]')) {
+          const show = (!category || item.dataset.category === category) && (!area || item.dataset.area === area)
+          item.hidden = !show
+          if (show) visible++
+        }
+        group.hidden = visible === 0
+        count += visible
+      }
+      status.textContent = `${count} ${count === 1 ? countLabel[0] : countLabel[1]}`
+      const url = new URL(location.href)
+      url.search = new URLSearchParams([...new FormData(form)].filter(([, v]) => v)).toString()
+      history.replaceState(null, '', url)
+    }
+    form.addEventListener('change', apply)
+    form.addEventListener('reset', () => setTimeout(apply))
+    form.addEventListener('submit', (e) => e.preventDefault())
+    if (params.size) apply()
+  }
+</script>

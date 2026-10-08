@@ -1,0 +1,277 @@
+---
+import { Image } from 'astro:assets'
+
+import logo from '@/assets/brand/ccvb-logo.png'
+import LanguageSwitcher from '@/components/LanguageSwitcher.astro'
+import { localePath, sectionPath, t, type LocaleCode } from '@/i18n'
+import { getGlobal } from '@/lib/cms'
+import { resolveLink, samePath } from '@/lib/links'
+import type { Alternates } from '@/lib/routes'
+
+type Props = { locale: LocaleCode; alternates: Alternates; currentPath: string }
+const { locale, alternates, currentPath } = Astro.props
+const ui = t(locale)
+
+const header = await getGlobal('header', locale)
+const mainNav = (header.mainNav ?? [])
+  .map((item, i) => ({
+    id: `nav-${i}`,
+    link: resolveLink(locale, item.link),
+    children: (item.children ?? []).map((c) => resolveLink(locale, c.link)).filter((l) => l !== null),
+  }))
+  .filter((item) => item.link !== null)
+const serviceNav = (header.serviceNav ?? []).map((s) => resolveLink(locale, s.link)).filter((l) => l !== null)
+
+const isCurrent = (href: string) => samePath(href, currentPath)
+const isInSection = (href: string) => href !== localePath(locale) && currentPath.startsWith(href)
+---
+
+<header class="border-b border-line bg-white">
+  <div class="container-page flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
+    <a href={localePath(locale)} class="shrink-0" aria-current={isCurrent(localePath(locale)) ? 'page' : undefined}>
+      <Image
+        src={logo}
+        alt={`${ui.siteShort} – ${ui.siteName} e. V., ${ui.home}`}
+        width={180}
+        loading="eager"
+        class="h-auto w-36 md:w-44"
+      />
+    </a>
+
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      {
+        serviceNav.length > 0 && (
+          <nav aria-label={ui.serviceNav}>
+            <ul class="flex flex-wrap gap-x-4 gap-y-1">
+              {serviceNav.map((l) => (
+                <li>
+                  <a href={l.href} class="text-ink no-underline hover:underline" aria-current={isCurrent(l.href) ? 'page' : undefined}>
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      <a
+        href={sectionPath(locale, 'search')}
+        class="text-ink no-underline hover:underline"
+        aria-current={isCurrent(sectionPath(locale, 'search')) ? 'page' : undefined}
+      >
+        {ui.search}
+      </a>
+      <LanguageSwitcher locale={locale} alternates={alternates} />
+    </div>
+
+    <button
+      type="button"
+      class="menu-toggle btn btn-secondary md:hidden"
+      aria-expanded="false"
+      aria-controls="hauptnavigation"
+      hidden
+    >
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <rect y="3" width="20" height="2.5" rx="1"></rect><rect y="9" width="20" height="2.5" rx="1"></rect><rect y="15" width="20" height="2.5" rx="1"></rect>
+      </svg>
+      {ui.menu}
+    </button>
+  </div>
+
+  {
+    mainNav.length > 0 && (
+      <nav id="hauptnavigation" aria-label={ui.mainNav} class="main-nav border-t border-line">
+        <ul class="container-page main-nav__list">
+          {mainNav.map((item) => (
+            <li class="main-nav__item">
+              <div class="main-nav__row">
+                <a
+                  href={item.link!.href}
+                  class="main-nav__link"
+                  aria-current={isCurrent(item.link!.href) ? 'page' : isInSection(item.link!.href) ? 'true' : undefined}
+                >
+                  {item.link!.label}
+                </a>
+                {item.children.length > 0 && (
+                  <button
+                    type="button"
+                    class="main-nav__toggle"
+                    aria-expanded="false"
+                    aria-controls={item.id}
+                    hidden
+                  >
+                    <span class="sr-only">{ui.submenu(item.link!.label)}</span>
+                    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M2 5l5 5 5-5" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {item.children.length > 0 && (
+                <ul id={item.id} class="main-nav__sub">
+                  {item.children.map((c) => (
+                    <li>
+                      <a href={c.href} aria-current={isCurrent(c.href) ? 'page' : undefined}>
+                        {c.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )
+  }
+</header>
+
+<style>
+  /* Ohne JavaScript: alle Untermenüs als normale Linklisten sichtbar. */
+  .main-nav__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    padding-block: 0.5rem;
+  }
+  .main-nav__row {
+    display: flex;
+    align-items: center;
+  }
+  .main-nav__link {
+    display: inline-block;
+    padding: 0.625rem 0.25rem;
+    font-weight: 700;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+  .main-nav__link:hover,
+  .main-nav__link[aria-current] {
+    color: var(--color-brand);
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 0.4em;
+  }
+  .main-nav__toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    color: var(--color-ink);
+    border-radius: 0.25rem;
+  }
+  .main-nav__toggle:hover {
+    background: var(--color-surface);
+  }
+  .main-nav__toggle[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+  .main-nav__sub {
+    padding: 0 0 0.5rem 0.75rem;
+  }
+  .main-nav__sub a {
+    display: block;
+    padding: 0.375rem 0;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+  .main-nav__sub a:hover,
+  .main-nav__sub a[aria-current] {
+    color: var(--color-brand);
+    text-decoration: underline;
+  }
+
+  /* Mit JavaScript: Disclosure-Muster (APG) */
+  :global(.js) .main-nav__sub {
+    display: none;
+  }
+  :global(.js) .main-nav__sub.is-open {
+    display: block;
+  }
+
+  @media (max-width: 47.99rem) {
+    .main-nav__list {
+      flex-direction: column;
+      gap: 0;
+    }
+    .main-nav__item + .main-nav__item {
+      border-top: 1px solid var(--color-line);
+    }
+    .main-nav__row {
+      justify-content: space-between;
+    }
+    :global(.js) .main-nav:not(.is-open) {
+      display: none;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    .main-nav__item {
+      position: relative;
+    }
+    :global(.js) .main-nav__sub {
+      position: absolute;
+      z-index: 40;
+      top: 100%;
+      left: 0;
+      min-width: 16rem;
+      padding: 0.75rem 1rem;
+      background: white;
+      border: 1px solid var(--color-line);
+      border-top: 3px solid var(--color-brand);
+      box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+    }
+  }
+</style>
+
+<script>
+  const nav = document.querySelector<HTMLElement>('.main-nav')
+  const menuToggle = document.querySelector<HTMLButtonElement>('.menu-toggle')
+  const toggles = [...document.querySelectorAll<HTMLButtonElement>('.main-nav__toggle')]
+
+  const setOpen = (button: HTMLButtonElement, open: boolean) => {
+    button.setAttribute('aria-expanded', String(open))
+    document.getElementById(button.getAttribute('aria-controls')!)?.classList.toggle('is-open', open)
+  }
+  const closeAll = (except?: HTMLButtonElement) =>
+    toggles.filter((b) => b !== except).forEach((b) => setOpen(b, false))
+
+  toggles.forEach((button) => {
+    button.hidden = false
+    button.addEventListener('click', () => {
+      const open = button.getAttribute('aria-expanded') !== 'true'
+      closeAll(button)
+      setOpen(button, open)
+    })
+  })
+
+  // Escape schließt das offene Untermenü und setzt den Fokus auf dessen Schalter zurück.
+  nav?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return
+    const open = toggles.find((b) => b.getAttribute('aria-expanded') === 'true')
+    if (open) {
+      setOpen(open, false)
+      open.focus()
+    }
+  })
+  // Klick oder Fokus außerhalb schließt Untermenüs.
+  document.addEventListener('click', (event) => {
+    if (!nav?.contains(event.target as Node)) closeAll()
+  })
+  nav?.addEventListener('focusout', (event) => {
+    const item = (event.target as HTMLElement).closest('.main-nav__item')
+    if (item && !item.contains(event.relatedTarget as Node)) {
+      const button = item.querySelector<HTMLButtonElement>('.main-nav__toggle')
+      if (button) setOpen(button, false)
+    }
+  })
+
+  if (menuToggle && nav) {
+    menuToggle.hidden = false
+    menuToggle.addEventListener('click', () => {
+      const open = menuToggle.getAttribute('aria-expanded') !== 'true'
+      menuToggle.setAttribute('aria-expanded', String(open))
+      nav.classList.toggle('is-open', open)
+    })
+  }
+</script>

@@ -89,6 +89,9 @@ export default buildConfig({
   sharp,
   typescript: {
     outputFile: path.resolve(dirname, '../../../packages/shared/src/payload-types.ts'),
+    // Die Typen nutzt auch das Frontend (ohne Payload). Die Modul-Erweiterung für die
+    // Local API steht deshalb in src/payload-generated.d.ts statt in der generierten Datei.
+    declare: false,
   },
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL || '' },

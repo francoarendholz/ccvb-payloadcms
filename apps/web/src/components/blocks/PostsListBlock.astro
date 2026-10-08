@@ -1,0 +1,29 @@
+---
+import type { PostsListBlock } from '@ccvb/shared/payload-types'
+
+import PostCard from '@/components/PostCard.astro'
+import { sectionPath, t, type LocaleCode } from '@/i18n'
+import { latestPosts } from '@/lib/queries'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: PostsListBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const ui = t(locale)
+const posts = await latestPosts({ locale, area: block.area, categories: block.categories as any, limit: block.limit ?? 3 })
+---
+
+<BlockHeading text={block.heading} />
+{
+  posts.length === 0 ? (
+    <p>{ui.noPosts}</p>
+  ) : (
+    <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {posts.map((post) => (
+        <li>
+          <PostCard post={post} locale={locale} headingLevel={block.heading ? 3 : 2} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+<p class="mt-6"><a href={sectionPath(locale, 'posts')} class="font-semibold">{ui.allPosts}</a></p>

@@ -1,0 +1,48 @@
+---
+import type { Page } from '@ccvb/shared/payload-types'
+
+import type { LocaleCode } from '@/i18n'
+import AccordionBlock from './blocks/AccordionBlock.astro'
+import CardGridBlock from './blocks/CardGridBlock.astro'
+import ContactsBlock from './blocks/ContactsBlock.astro'
+import CtaBlock from './blocks/CtaBlock.astro'
+import DocumentsListBlock from './blocks/DocumentsListBlock.astro'
+import EventsListBlock from './blocks/EventsListBlock.astro'
+import FormBlock from './blocks/FormBlock.astro'
+import GalleryBlock from './blocks/GalleryBlock.astro'
+import ImageBlock from './blocks/ImageBlock.astro'
+import ImageTextBlock from './blocks/ImageTextBlock.astro'
+import LogosBlock from './blocks/LogosBlock.astro'
+import PostsListBlock from './blocks/PostsListBlock.astro'
+import TextBlock from './blocks/TextBlock.astro'
+
+type Props = { blocks: Page['layout']; locale: LocaleCode }
+const { blocks, locale } = Astro.props
+
+const components: Record<string, (props: any) => any> = {
+  text: TextBlock,
+  image: ImageBlock,
+  imageText: ImageTextBlock,
+  cta: CtaBlock,
+  cardGrid: CardGridBlock,
+  accordion: AccordionBlock,
+  contacts: ContactsBlock,
+  postsList: PostsListBlock,
+  eventsList: EventsListBlock,
+  documentsList: DocumentsListBlock,
+  gallery: GalleryBlock,
+  logos: LogosBlock,
+  formBlock: FormBlock,
+}
+---
+
+{
+  (blocks ?? []).map((block) => {
+    const Component = components[block.blockType]
+    return Component ? (
+      <div class="container-page my-12 first:mt-8" data-block={block.blockType}>
+        <Component block={block} locale={locale} />
+      </div>
+    ) : null
+  })
+}

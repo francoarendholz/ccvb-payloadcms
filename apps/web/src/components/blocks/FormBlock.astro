@@ -1,0 +1,103 @@
+---
+import type { Form, FormBlock } from '@ccvb/shared/payload-types'
+
+import RichText from '@/components/RichText.astro'
+import { t, type LocaleCode } from '@/i18n'
+import BlockHeading from './BlockHeading.astro'
+
+type Props = { block: FormBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const ui = t(locale)
+const form = typeof block.form === 'object' ? (block.form as Form) : null
+const uid = `form-${block.id ?? form?.id}`
+const anyRequired = form?.fields?.some((f) => 'required' in f && f.required)
+---
+
+{
+  form && (
+    <div class="max-w-(--container-content)">
+      <BlockHeading text={block.heading} id={`${uid}-title`} />
+      {block.intro && <p class="mb-6">{block.intro}</p>}
+      <form
+        method="post"
+        action="/api/form"
+        class="space-y-5"
+        aria-labelledby={block.heading ? `${uid}-title` : undefined}
+      >
+        <input type="hidden" name="_form" value={form.id} />
+        <input type="hidden" name="_locale" value={locale} />
+        <input type="hidden" name="_page" value={Astro.url.pathname} />
+        {/* Honeypot: für Menschen unsichtbar, Bots füllen es aus. */}
+        <div class="hidden" aria-hidden="true">
+          <label for={`${uid}-website`}>Website</label>
+          <input id={`${uid}-website`} name="_website" type="text" tabindex="-1" autocomplete="off" />
+        </div>
+        {anyRequired && <p class="text-sm text-muted">{ui.requiredHint}</p>}
+
+        {(form.fields ?? []).map((field) => {
+          if (field.blockType === 'message') {
+            return <RichText data={field.message as any} locale={locale} />
+          }
+          const id = `${uid}-${field.name}`
+          const label = field.label || field.name
+          const req = Boolean(field.required)
+          const labelEl = (
+            <label for={id} class="mb-1 block font-semibold">
+              {label}
+              {req && <span aria-hidden="true" class="text-brand"> *</span>}
+            </label>
+          )
+          const inputClass = 'block w-full rounded border-2 border-muted px-3 py-2 focus:border-focus'
+          const autocomplete = field.blockType === 'email' ? 'email' : /name/i.test(field.name) ? 'name' : undefined
+          switch (field.blockType) {
+            case 'checkbox':
+              return (
+                <div class="flex items-start gap-3">
+                  <input id={id} name={field.name} type="checkbox" value="ja" required={req} checked={Boolean(field.defaultValue)} class="mt-1 size-5 accent-brand" />
+                  <label for={id}>
+                    {label}
+                    {req && <span aria-hidden="true" class="text-brand"> *</span>}
+                  </label>
+                </div>
+              )
+            case 'textarea':
+              return (
+                <div>
+                  {labelEl}
+                  <textarea id={id} name={field.name} required={req} rows={6} class={inputClass}>{field.defaultValue}</textarea>
+                </div>
+              )
+            case 'select':
+              return (
+                <div>
+                  {labelEl}
+                  <select id={id} name={field.name} required={req} class={inputClass}>
+                    <option value="">{field.placeholder || '–'}</option>
+                    {(field.options ?? []).map((o) => (
+                      <option value={o.value} selected={o.value === field.defaultValue}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+            default:
+              return (
+                <div>
+                  {labelEl}
+                  <input
+                    id={id}
+                    name={field.name}
+                    type={field.blockType === 'email' ? 'email' : field.blockType === 'number' ? 'number' : 'text'}
+                    required={req}
+                    value={'defaultValue' in field && field.defaultValue != null ? String(field.defaultValue) : undefined}
+                    autocomplete={autocomplete}
+                    class={inputClass}
+                  />
+                </div>
+              )
+          }
+        })}
+        <button type="submit" class="btn btn-primary">{form.submitButtonLabel || ui.submit}</button>
+      </form>
+    </div>
+  )
+}

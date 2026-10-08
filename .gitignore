@@ -26,3 +26,11 @@ apps/cms/public/media/
 npm-debug.log*
 pnpm-debug.log*
 .playwright-mcp/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Von `next dev` erzeugt
+apps/cms/AGENTS.md
+apps/cms/CLAUDE.md

@@ -1,0 +1,12 @@
+---
+import PageTitle from '@/components/PageTitle.astro'
+import { localePath, t, type LocaleCode } from '@/i18n'
+
+type Props = { locale: LocaleCode }
+const { locale } = Astro.props
+const ui = t(locale)
+---
+
+<PageTitle title={ui.thanksTitle} intro={ui.thanksText}>
+  <p class="mt-8"><a href={localePath(locale)} class="btn btn-primary">{ui.backHome}</a></p>
+</PageTitle>

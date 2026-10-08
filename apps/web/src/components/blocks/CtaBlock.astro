@@ -1,0 +1,27 @@
+---
+import type { CallToActionBlock } from '@ccvb/shared/payload-types'
+
+import ExtLink from '@/components/ExtLink.astro'
+import type { LocaleCode } from '@/i18n'
+import { resolveLink } from '@/lib/links'
+
+type Props = { block: CallToActionBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const links = (block.links ?? []).map((l) => resolveLink(locale, l.link)).filter((l) => l !== null)
+---
+
+<div class="rounded bg-brand-tint p-8 md:p-10">
+  <h2 class="heading-section mb-3">{block.heading}</h2>
+  {block.text && <p class="max-w-(--container-content) text-lg">{block.text}</p>}
+  {
+    links.length > 0 && (
+      <ul class="mt-6 flex flex-wrap gap-4">
+        {links.map((l) => (
+          <li>
+            <ExtLink href={l.href} newTab={l.newTab} locale={locale} class={`btn btn-${l.appearance}`}>{l.label}</ExtLink>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</div>

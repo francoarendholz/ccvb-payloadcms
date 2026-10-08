@@ -1,0 +1,28 @@
+---
+import type { ImageTextBlock } from '@ccvb/shared/payload-types'
+
+import ExtLink from '@/components/ExtLink.astro'
+import Picture from '@/components/Picture.astro'
+import RichText from '@/components/RichText.astro'
+import type { LocaleCode } from '@/i18n'
+import { resolveLink } from '@/lib/links'
+
+type Props = { block: ImageTextBlock; locale: LocaleCode }
+const { block, locale } = Astro.props
+const link = block.enableLink ? resolveLink(locale, block.link) : null
+---
+
+<div class="grid items-center gap-8 md:grid-cols-2">
+  <div class:list={[{ 'md:order-last': block.imagePosition === 'right' }]}>
+    <Picture media={block.media} sizes="(min-width: 48rem) 50vw, 100vw" max="large" class="h-auto w-full rounded" />
+  </div>
+  <div>
+    <h2 class="heading-section">{block.heading}</h2>
+    <RichText data={block.content as any} locale={locale} />
+    {link && (
+      <p class="mt-6">
+        <ExtLink href={link.href} newTab={link.newTab} locale={locale} class="btn btn-primary">{link.label}</ExtLink>
+      </p>
+    )}
+  </div>
+</div>
