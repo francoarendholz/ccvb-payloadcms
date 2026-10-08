@@ -12,6 +12,8 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'roles'],
   },
   auth: {
+    // API-Keys für Dienstkonten (z. B. Entwurfsvorschau im Frontend)
+    useAPIKey: true,
     maxLoginAttempts: 5,
     lockTime: 10 * 60 * 1000,
     tokenExpiration: 8 * 60 * 60,

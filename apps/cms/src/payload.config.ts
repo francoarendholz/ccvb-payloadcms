@@ -1,11 +1,14 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { de } from '@payloadcms/translations/languages/de'
 import path from 'path'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
+import { payloadTotp, totpAccess } from 'payload-totp'
 
 import { DEFAULT_LOCALE, LOCALES } from '@ccvb/shared'
+import { hasRole } from './access'
 import { Categories } from './collections/Categories'
 import { Documents } from './collections/Documents'
 import { Events } from './collections/Events'
@@ -35,6 +38,9 @@ export default buildConfig({
     meta: { titleSuffix: ' – CCVB CMS' },
     dateFormat: 'dd.MM.yyyy HH:mm',
     importMap: { baseDir: path.resolve(dirname) },
+    components: {
+      beforeDashboard: ['@/components/ReviewQueue#ReviewQueue'],
+    },
     livePreview: {
       breakpoints: [
         { label: 'Smartphone', name: 'mobile', width: 375, height: 667 },
@@ -50,13 +56,36 @@ export default buildConfig({
   localization: {
     locales: LOCALES.map(({ code, label }) => ({ code, label })),
     defaultLocale: DEFAULT_LOCALE,
-    // Keine stille Ersatzsprache: fehlt die Leichte-Sprache-Fassung, wird keine angezeigt.
-    fallback: false,
+    // Muss true sein, sonst landen Anfragen ohne ?locale= im „alle Sprachen“-Modus.
+    // Das Frontend fragt immer mit fallback-locale=none ab: fehlt z. B. die Leichte-Sprache-
+    // Fassung, wird sie nicht stillschweigend durch Deutsch ersetzt.
+    fallback: true,
   },
   collections: [Pages, Posts, Events, People, Media, Documents, Categories, Users],
   globals: [Header, Footer],
   editor: richTextEditor,
-  plugins,
+  plugins: [
+    ...plugins,
+    // Muss das letzte Plugin sein – umhüllt die Zugriffsregeln aller Collections.
+    payloadTotp({
+      collection: 'users',
+      disabled: process.env.TOTP_DISABLED === 'true',
+      forceSetup: true,
+      totp: { issuer: 'CCVB CMS' },
+    }),
+  ],
+  // Ohne SMTP-Konfiguration landen E-Mails im Log.
+  email: process.env.SMTP_HOST
+    ? nodemailerAdapter({
+        defaultFromAddress: process.env.SMTP_FROM || 'cms@cheersportberlin.de',
+        defaultFromName: 'CCVB CMS',
+        transportOptions: {
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT || 587),
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        },
+      })
+    : undefined,
   secret: process.env.PAYLOAD_SECRET || '',
   sharp,
   typescript: {
@@ -71,5 +100,11 @@ export default buildConfig({
   jobs: {
     // Für zeitgesteuertes Veröffentlichen (schedulePublish)
     autoRun: [{ cron: '* * * * *', queue: 'default' }],
+    access: {
+      // Veröffentlichung planen dürfen nur Redaktion/Administration (mit bestätigtem TOTP).
+      queue: async (args) =>
+        hasRole(args.req.user, 'admin', 'redaktion') &&
+        (await totpAccess(() => true)(args as never)) === true,
+    },
   },
 })

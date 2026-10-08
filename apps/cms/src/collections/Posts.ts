@@ -1,20 +1,23 @@
 import { slugField, type CollectionConfig } from 'payload'
 import { BlocksFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 
-import { authenticated, authenticatedOrPublished, isEditor } from '@/access'
+import { authenticated, isEditor, publicRead, publishedOrVerified } from '@/access'
 import { inlineBlocks } from '@/blocks'
 import { areaField } from '@/fields/area'
 import { seoTab } from '@/fields/seo'
 import { populatePublishedAt } from '@/hooks/populatePublishedAt'
 import { previewUrl } from '@/utilities/previewUrl'
+import { reviewFields } from '@/workflow/fields'
+import { workflowHooks } from '@/workflow/hooks'
 
 export const Posts: CollectionConfig<'posts'> = {
   slug: 'posts',
   labels: { singular: 'Beitrag', plural: 'Aktuelles' },
+  custom: publicRead,
   access: {
     create: authenticated,
     delete: isEditor,
-    read: authenticatedOrPublished,
+    read: publishedOrVerified,
     update: authenticated,
   },
   defaultPopulate: {
@@ -29,7 +32,8 @@ export const Posts: CollectionConfig<'posts'> = {
   admin: {
     group: 'Inhalte',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'categories', 'area', 'publishedAt', '_status'],
+    components: { edit: { PublishButton: '@/components/PublishButton#PublishButton' } },
+    defaultColumns: ['title', 'categories', 'area', 'publishedAt', 'reviewStatus', '_status'],
     livePreview: { url: ({ data, req }) => previewUrl({ collection: 'posts', id: data?.id, req }) },
     preview: (data, { req }) => previewUrl({ collection: 'posts', id: data?.id as string, req }),
   },
@@ -84,9 +88,13 @@ export const Posts: CollectionConfig<'posts'> = {
       admin: { position: 'sidebar' },
     },
     areaField(),
+    ...reviewFields,
     slugField(),
   ],
-  hooks: { beforeChange: [populatePublishedAt] },
+  hooks: {
+    beforeChange: [populatePublishedAt, ...workflowHooks.beforeChange],
+    afterChange: workflowHooks.afterChange,
+  },
   versions: {
     drafts: { autosave: { interval: 2000 }, schedulePublish: true },
     maxPerDoc: 50,

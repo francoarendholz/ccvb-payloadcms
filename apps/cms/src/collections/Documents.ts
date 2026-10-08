@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import path from 'path'
 
-import { anyone, authenticated, isEditor } from '@/access'
+import { anyone, authenticated, isEditor, publicRead } from '@/access'
 import { areaField } from '@/fields/area'
 
 export const Documents: CollectionConfig = {
@@ -14,6 +14,7 @@ export const Documents: CollectionConfig = {
     description: 'PDFs und andere Dateien zum Herunterladen (Satzung, Protokolle, Regelwerke …).',
   },
   folders: true,
+  custom: publicRead,
   access: { create: authenticated, read: anyone, update: authenticated, delete: isEditor },
   fields: [
     { name: 'title', type: 'text', label: 'Titel', required: true, localized: true },

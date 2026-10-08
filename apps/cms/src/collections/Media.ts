@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import path from 'path'
 
-import { anyone, authenticated, isEditor } from '@/access'
+import { anyone, authenticated, isEditor, publicRead } from '@/access'
 
 const webp = { format: 'webp' as const, options: { quality: 80 } }
 
@@ -10,6 +10,7 @@ export const Media: CollectionConfig = {
   labels: { singular: 'Bild', plural: 'Bilder' },
   admin: { group: 'Medien & Dateien', useAsTitle: 'alt' },
   folders: true,
+  custom: publicRead,
   access: { create: authenticated, read: anyone, update: authenticated, delete: isEditor },
   fields: [
     {

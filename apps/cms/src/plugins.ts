@@ -4,7 +4,7 @@ import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 
-import { isEditor } from '@/access'
+import { anyone, isEditor, publicRead } from '@/access'
 
 const SITE_NAME = 'CCV Berlin'
 
@@ -24,7 +24,9 @@ export const plugins: Plugin[] = [
     overrides: {
       labels: { singular: 'Weiterleitung', plural: 'Weiterleitungen' },
       admin: { group: 'Einstellungen' },
-      access: { read: isEditor, create: isEditor, update: isEditor, delete: isEditor },
+      // Lesbar für den Astro-Build (erzeugt daraus die Caddy-Weiterleitungen)
+      custom: publicRead,
+      access: { read: anyone, create: isEditor, update: isEditor, delete: isEditor },
     },
   }),
   formBuilderPlugin({
@@ -33,10 +35,15 @@ export const plugins: Plugin[] = [
     formOverrides: {
       labels: { singular: 'Formular', plural: 'Formulare' },
       admin: { group: 'Einstellungen' },
+      custom: publicRead,
+      access: { read: anyone, create: isEditor, update: isEditor, delete: isEditor },
     },
     formSubmissionOverrides: {
       labels: { singular: 'Formular-Eingang', plural: 'Formular-Eingänge' },
       admin: { group: 'Einstellungen' },
+      // Absenden ohne Login (über den Formular-Endpunkt der Website)
+      custom: { totp: { disableAccessWrapper: { create: true } } },
+      access: { create: anyone, read: isEditor, update: () => false, delete: isEditor },
     },
   }),
 ]

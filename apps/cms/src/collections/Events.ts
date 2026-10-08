@@ -1,18 +1,21 @@
 import { slugField, type CollectionConfig } from 'payload'
 
-import { authenticated, authenticatedOrPublished, isEditor } from '@/access'
+import { authenticated, isEditor, publicRead, publishedOrVerified } from '@/access'
 import { areaField } from '@/fields/area'
 import { richTextEditor } from '@/fields/lexical'
 import { seoTab } from '@/fields/seo'
 import { previewUrl } from '@/utilities/previewUrl'
+import { reviewFields } from '@/workflow/fields'
+import { workflowHooks } from '@/workflow/hooks'
 
 export const Events: CollectionConfig<'events'> = {
   slug: 'events',
   labels: { singular: 'Termin', plural: 'Termine' },
+  custom: publicRead,
   access: {
     create: authenticated,
     delete: isEditor,
-    read: authenticatedOrPublished,
+    read: publishedOrVerified,
     update: authenticated,
   },
   defaultPopulate: {
@@ -27,7 +30,8 @@ export const Events: CollectionConfig<'events'> = {
   admin: {
     group: 'Inhalte',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'startDate', 'area', '_status'],
+    components: { edit: { PublishButton: '@/components/PublishButton#PublishButton' } },
+    defaultColumns: ['title', 'startDate', 'area', 'reviewStatus', '_status'],
     livePreview: { url: ({ data, req }) => previewUrl({ collection: 'events', id: data?.id, req }) },
     preview: (data, { req }) => previewUrl({ collection: 'events', id: data?.id as string, req }),
   },
@@ -129,8 +133,10 @@ export const Events: CollectionConfig<'events'> = {
       ],
     },
     areaField(),
+    ...reviewFields,
     slugField(),
   ],
+  hooks: workflowHooks,
   versions: {
     drafts: { autosave: { interval: 2000 }, schedulePublish: true },
     maxPerDoc: 30,

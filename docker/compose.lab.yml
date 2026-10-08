@@ -39,6 +39,12 @@ services:
       SERVER_URL: https://ccvbcms.lab.code-ops.de
       WEB_URL: https://ccvbastro.lab.code-ops.de
       MEDIA_DIR: /data/media
+      # Optional – ohne SMTP_HOST werden Mails nur geloggt
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
       - media:/data/media
     ports:

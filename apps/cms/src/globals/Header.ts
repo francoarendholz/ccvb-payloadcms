@@ -1,12 +1,13 @@
 import type { GlobalConfig } from 'payload'
 
-import { anyone, isAdmin } from '@/access'
+import { anyone, isAdmin, publicRead } from '@/access'
 import { link } from '@/fields/link'
 
 export const Header: GlobalConfig = {
   slug: 'header',
   label: 'Navigation',
   admin: { group: 'Einstellungen' },
+  custom: publicRead,
   access: { read: anyone, update: isAdmin },
   fields: [
     {

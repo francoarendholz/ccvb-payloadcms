@@ -1,6 +1,6 @@
 import { slugField, type CollectionConfig } from 'payload'
 
-import { anyone, isEditor } from '@/access'
+import { anyone, isEditor, publicRead } from '@/access'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
@@ -10,6 +10,7 @@ export const Categories: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'type'],
   },
+  custom: publicRead,
   access: { create: isEditor, read: anyone, update: isEditor, delete: isEditor },
   fields: [
     { name: 'title', type: 'text', label: 'Titel', required: true, localized: true },

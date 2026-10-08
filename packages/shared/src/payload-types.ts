@@ -78,6 +78,7 @@ export interface Config {
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
+    'totp-attempts': TotpAttempt;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-folders': FolderInterface;
@@ -102,6 +103,7 @@ export interface Config {
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    'totp-attempts': TotpAttemptsSelect<false> | TotpAttemptsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
@@ -197,6 +199,12 @@ export interface Page {
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
   publishedAt?: string | null;
+  /**
+   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   */
+  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewNote?: string | null;
+  submittedBy?: (number | null) | User;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -505,6 +513,12 @@ export interface Post {
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
   /**
+   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   */
+  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewNote?: string | null;
+  submittedBy?: (number | null) | User;
+  /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
   generateSlug?: boolean | null;
@@ -512,6 +526,42 @@ export interface Post {
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  /**
+   * Autor*innen erstellen Entwürfe, die Redaktion veröffentlicht, Administration verwaltet Zugänge und Einstellungen.
+   */
+  roles: ('admin' | 'redaktion' | 'autor')[];
+  totpSecret?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+  hasAPIKey?: boolean | null;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'users';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -559,6 +609,12 @@ export interface Event {
    * Inhalt erscheint automatisch auf der Seite dieses Bereichs.
    */
   area?: ('verband' | 'jugend' | 'wettkaempfe' | 'bildung' | 'leistungssport' | 'vielfalt') | null;
+  /**
+   * Autor*innen: Wenn der Inhalt fertig ist, auf „Zur Prüfung eingereicht“ stellen.
+   */
+  reviewStatus?: ('in_progress' | 'review' | 'changes_requested') | null;
+  reviewNote?: string | null;
+  submittedBy?: (number | null) | User;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -1000,37 +1056,6 @@ export interface Form {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  name: string;
-  /**
-   * Autor*innen erstellen Entwürfe, die Redaktion veröffentlicht, Administration verwaltet Zugänge und Einstellungen.
-   */
-  roles: ('admin' | 'redaktion' | 'autor')[];
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  resetPasswordRequestedAt?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: 'users';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -1073,6 +1098,15 @@ export interface FormSubmission {
     | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "totp-attempts".
+ */
+export interface TotpAttempt {
+  id: string;
+  attempts: number;
+  lockUntil?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1319,6 +1353,9 @@ export interface PagesSelect<T extends boolean = true> {
       };
   area?: T;
   publishedAt?: T;
+  reviewStatus?: T;
+  reviewNote?: T;
+  submittedBy?: T;
   generateSlug?: T;
   slug?: T;
   parent?: T;
@@ -1545,6 +1582,9 @@ export interface PostsSelect<T extends boolean = true> {
   publishedAt?: T;
   categories?: T;
   area?: T;
+  reviewStatus?: T;
+  reviewNote?: T;
+  submittedBy?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1580,6 +1620,9 @@ export interface EventsSelect<T extends boolean = true> {
         description?: T;
       };
   area?: T;
+  reviewStatus?: T;
+  reviewNote?: T;
+  submittedBy?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1727,8 +1770,13 @@ export interface CategoriesSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   roles?: T;
+  totpSecret?: T;
   updatedAt?: T;
   createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
+  hasAPIKey?: T;
   email?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
@@ -1892,6 +1940,15 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "totp-attempts_select".
+ */
+export interface TotpAttemptsSelect<T extends boolean = true> {
+  id?: T;
+  attempts?: T;
+  lockUntil?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

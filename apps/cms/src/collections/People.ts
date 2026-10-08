@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { anyone, authenticated, isEditor } from '@/access'
+import { anyone, authenticated, isEditor, publicRead } from '@/access'
 import { areaField } from '@/fields/area'
 
 /** Ansprechpersonen – einmal pflegen, auf beliebig vielen Seiten verwenden. */
@@ -12,6 +12,7 @@ export const People: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'role', 'area'],
   },
+  custom: publicRead,
   access: { create: authenticated, read: anyone, update: authenticated, delete: isEditor },
   fields: [
     { name: 'name', type: 'text', label: 'Name', required: true },
