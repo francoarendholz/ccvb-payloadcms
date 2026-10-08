@@ -5,8 +5,32 @@ import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 
 import { anyone, isEditor, publicRead } from '@/access'
+import { rebuildAfterChange, rebuildAfterDelete, rebuildAfterGlobalChange } from '@/hooks/triggerRebuild'
 
 const SITE_NAME = 'CCV Berlin'
+
+/** Alles, was auf der Website erscheint – Änderungen lösen einen Neubau aus. */
+const REBUILD_COLLECTIONS = ['pages', 'posts', 'events', 'people', 'media', 'documents', 'categories', 'redirects', 'forms']
+
+const rebuildPlugin: Plugin = (config) => ({
+  ...config,
+  collections: (config.collections ?? []).map((c) =>
+    REBUILD_COLLECTIONS.includes(c.slug)
+      ? {
+          ...c,
+          hooks: {
+            ...c.hooks,
+            afterChange: [...(c.hooks?.afterChange ?? []), rebuildAfterChange],
+            afterDelete: [...(c.hooks?.afterDelete ?? []), rebuildAfterDelete],
+          },
+        }
+      : c,
+  ),
+  globals: (config.globals ?? []).map((g) => ({
+    ...g,
+    hooks: { ...g.hooks, afterChange: [...(g.hooks?.afterChange ?? []), rebuildAfterGlobalChange] },
+  })),
+})
 
 export const plugins: Plugin[] = [
   nestedDocsPlugin({
@@ -46,4 +70,6 @@ export const plugins: Plugin[] = [
       access: { create: anyone, read: isEditor, update: () => false, delete: isEditor },
     },
   }),
+  // Nach den anderen Plugins, damit auch Weiterleitungen und Formulare erfasst sind.
+  rebuildPlugin,
 ]

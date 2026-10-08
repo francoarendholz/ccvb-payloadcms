@@ -541,7 +541,7 @@ export interface User {
   /**
    * Autor*innen erstellen Entwürfe, die Redaktion veröffentlicht, Administration verwaltet Zugänge und Einstellungen.
    */
-  roles: ('admin' | 'redaktion' | 'autor')[];
+  roles: ('admin' | 'redaktion' | 'autor' | 'vorschau')[];
   totpSecret?: string | null;
   updatedAt: string;
   createdAt: string;

@@ -26,7 +26,8 @@ const info = localeInfo(locale)
 const site = Astro.site ?? new URL(Astro.url.origin)
 const canonical = new URL(Astro.url.pathname, site).href
 const fullTitle = title === ui.siteShort ? `${ui.siteShort} – ${ui.siteName}` : `${title} | ${ui.siteShort}`
-const og = ogImage(image)
+const ogPath = ogImage(image)
+const og = ogPath ? new URL(ogPath, site).href : undefined
 ---
 
 <!doctype html>

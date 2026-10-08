@@ -36,6 +36,9 @@ services:
       DATABASE_URL: postgresql://ccvb_lab:${CCVB_LAB_DB_PASSWORD}@postgres:5432/ccvb_lab
       PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
       PREVIEW_SECRET: ${PREVIEW_SECRET:?}
+      PREVIEW_API_KEY: ${PREVIEW_API_KEY:?}
+      REBUILD_URL: http://web:4321/internal/rebuild
+      REBUILD_TOKEN: ${REBUILD_TOKEN:?}
       SERVER_URL: https://ccvbcms.lab.code-ops.de
       WEB_URL: https://ccvbastro.lab.code-ops.de
       MEDIA_DIR: /data/media
@@ -52,9 +55,45 @@ services:
     networks: [internal]
     mem_limit: 1536m
 
+  # Builder + Astro-Node-Server (Formulare, Vorschau). Baut die statische Website ins Volume www.
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    image: ccvb/web:lab
+    restart: unless-stopped
+    depends_on: [cms]
+    environment:
+      CMS_URL: http://cms:3000
+      SITE_URL: https://ccvbastro.lab.code-ops.de
+      MEDIA_URL: /media
+      PREVIEW_SECRET: ${PREVIEW_SECRET:?}
+      CMS_API_KEY: ${PREVIEW_API_KEY:?}
+      REBUILD_TOKEN: ${REBUILD_TOKEN:?}
+    volumes:
+      - www:/data/www
+    networks: [internal]
+    mem_limit: 1536m
+
+  # Liefert die Website aus – läuft auch, wenn CMS oder Builder stehen.
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - www:/srv/www:ro
+      - media:/srv/media:ro
+      - caddy_data:/data
+    ports:
+      - "192.168.20.203:8130:80"
+    networks: [internal]
+    mem_limit: 256m
+
 volumes:
   pgdata:
   media:
+  www:
+  caddy_data:
 
 networks:
   internal:

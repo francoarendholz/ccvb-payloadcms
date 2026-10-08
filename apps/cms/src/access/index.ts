@@ -1,7 +1,7 @@
 import type { Access, FieldAccess, Where } from 'payload'
 import { totpAccess } from 'payload-totp'
 
-import type { Role } from '@ccvb/shared'
+import { EDITORIAL_ROLES, type Role } from '@ccvb/shared'
 
 type UserWithRole = { roles?: Role[] | null } | null | undefined
 
@@ -10,7 +10,10 @@ export const hasRole = (user: UserWithRole, ...roles: Role[]): boolean =>
 
 export const anyone: Access = () => true
 
-export const authenticated: Access = ({ req: { user } }) => Boolean(user)
+/** Angemeldete Mitarbeitende (Admin, Redaktion, Autor*in) – nicht das Vorschau-Dienstkonto. */
+export const isStaff = (user: UserWithRole): boolean => hasRole(user, ...EDITORIAL_ROLES)
+
+export const authenticated: Access = ({ req: { user } }) => isStaff(user)
 
 export const isAdmin: Access = ({ req: { user } }) => hasRole(user, 'admin')
 

@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   // Monorepo: Abhängigkeiten liegen im pnpm-Store im Repo-Root
   outputFileTracingRoot: path.resolve(dirname, '../..'),
   transpilePackages: ['@ccvb/shared'],
+  // Das CMS gehört nie in Suchmaschinen.
+  headers: async () => [
+    { source: '/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
+  ],
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],

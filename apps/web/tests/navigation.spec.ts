@@ -90,12 +90,12 @@ test('Kontaktformular: Absenden führt zur Danke-Seite', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vielen Dank!')
 })
 
-test('Formular-Endpunkt lehnt fehlende Pflichtfelder ab', async ({ request }) => {
+test('Formular-Endpunkt lehnt fehlende Pflichtfelder ab', async ({ request, baseURL }) => {
   const form = await request.get('/verband/kontakt/').then((r) => r.text())
   const formId = form.match(/name="_form" value="(\d+)"/)![1]
   const res = await request.post('/api/form', {
     form: { _form: formId, _locale: 'de', _page: '/verband/kontakt/', email: 'kaputt' },
-    headers: { Origin: 'http://localhost:4322' },
+    headers: { Origin: new URL(baseURL!).origin },
     maxRedirects: 0,
   })
   expect(res.status()).toBe(400)

@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 rsync -az --delete \
   --exclude node_modules --exclude .git --exclude '.env*' \
-  --exclude dist --exclude .next --exclude .astro --exclude 'apps/cms/media' \
+  --exclude dist --exclude .next --exclude .astro --exclude test-results --exclude 'apps/cms/media' \
   "$ROOT/" "$HOST:$DIR/"
 scp -q "$ROOT/.env.lab" "$HOST:$DIR/.env.lab"
 ssh "$HOST" "chmod 600 $DIR/.env.lab"

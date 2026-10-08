@@ -1,0 +1,54 @@
+# Website ccvbastro (Lab). TLS macht der Nginx Proxy Manager davor.
+{
+	admin off
+	auto_https off
+	servers {
+		# X-Forwarded-Proto/-Host vom Nginx Proxy Manager übernehmen (für Astros Origin-Prüfung)
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	encode zstd gzip
+	header -Server
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# Lab: nicht indexieren. Für die Produktion entfernen.
+		X-Robots-Tag "noindex, nofollow"
+	}
+
+	# Bilder und Dokumente direkt aus dem Media-Volume des CMS
+	handle /media/* {
+		root * /srv
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+
+	# On demand: Formulare und Entwurfsvorschau (Astro-Node-Server)
+	handle /api/form {
+		reverse_proxy web:4322
+	}
+	handle /preview/* {
+		reverse_proxy web:4322
+	}
+
+	# Builder-Endpunkte nie öffentlich
+	handle /internal/* {
+		respond 404
+	}
+
+	# Statische Website (aktuelle Fassung)
+	handle {
+		root * /srv/www/current/client
+		@assets path /_astro/* /pagefind/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header /pagefind/* Cache-Control "public, max-age=300"
+		file_server
+	}
+
+	# Keine Datei gefunden: Weiterleitungen aus dem CMS oder 404-Seite (Builder)
+	handle_errors 404 {
+		reverse_proxy web:4321
+	}
+}

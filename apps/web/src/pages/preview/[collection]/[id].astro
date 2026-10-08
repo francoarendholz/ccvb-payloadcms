@@ -1,0 +1,68 @@
+---
+/**
+ * Entwurfsvorschau für das CMS (Live-Vorschau und „Vorschau“-Button), on demand gerendert.
+ * Prüft PREVIEW_SECRET und lädt den neuesten Entwurf mit dem API-Key des Dienstkontos.
+ */
+import { LOCALES, type LocaleCode } from '@/i18n'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import { findByID, hasLocale } from '@/lib/cms'
+import { env } from '@/lib/env'
+import { loadPagePaths } from '@/lib/links'
+import EventView from '@/views/EventView.astro'
+import PageView from '@/views/PageView.astro'
+import PostView from '@/views/PostView.astro'
+
+export const prerender = false
+
+const { collection, id } = Astro.params
+const params = Astro.url.searchParams
+const locale = (LOCALES.find((l) => l.code === params.get('locale'))?.code ?? 'de') as LocaleCode
+
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+Astro.response.headers.set('Cache-Control', 'no-store')
+
+if (!env.previewSecret || params.get('token') !== env.previewSecret) {
+  return new Response('Nicht erlaubt', { status: 403 })
+}
+if (!['pages', 'posts', 'events'].includes(collection ?? '') || !/^\d+$/.test(id ?? '')) {
+  return new Response('Nicht gefunden', { status: 404 })
+}
+
+await loadPagePaths()
+const kind = collection as 'pages' | 'posts' | 'events'
+const doc = await findByID(kind, id!, { locale, depth: 2, draft: true }).catch(() => null)
+---
+
+{
+  doc && hasLocale(doc) ? (
+    <BaseLayout locale={locale} title={`Vorschau: ${doc.title}`} noindex searchable={false}>
+      <p class="bg-ink py-2 text-center text-sm text-white" role="note">
+        Vorschau – diese Fassung ist noch nicht unbedingt veröffentlicht.
+      </p>
+      {kind === 'pages' && <PageView doc={doc as any} locale={locale} />}
+      {kind === 'posts' && <PostView doc={doc as any} locale={locale} />}
+      {kind === 'events' && <EventView doc={doc as any} locale={locale} />}
+    </BaseLayout>
+  ) : (
+    <BaseLayout locale={locale} title="Vorschau" noindex searchable={false}>
+      <div class="container-page py-12">
+        <h1 class="text-3xl font-bold">Noch keine Vorschau</h1>
+        <p class="mt-4">Für diese Sprache gibt es noch keinen Titel. Bitte zuerst einen Titel eingeben und speichern.</p>
+      </div>
+    </BaseLayout>
+  )
+}
+
+<script is:inline>
+  // Live-Vorschau im CMS: Bereitschaft melden, dann nach jedem Speichern (auch Autosave)
+  // neu laden. Payload schickt dafür „payload-document-event“ an das iframe.
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'payload-live-preview', ready: true }, '*')
+    let timer
+    window.addEventListener('message', (event) => {
+      if (event.data?.type !== 'payload-document-event') return
+      clearTimeout(timer)
+      timer = setTimeout(() => location.reload(), 300)
+    })
+  }
+</script>

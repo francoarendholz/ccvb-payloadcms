@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 import { payloadTotp, totpAccess } from 'payload-totp'
 
 import { DEFAULT_LOCALE, LOCALES } from '@ccvb/shared'
+import { isStaff } from './access'
 import { Categories } from './collections/Categories'
 import { Documents } from './collections/Documents'
 import { Events } from './collections/Events'
@@ -21,6 +22,7 @@ import { Footer } from './globals/Footer'
 import { Header } from './globals/Header'
 import { migrations } from './migrations'
 import { plugins } from './plugins'
+import { ensurePreviewAccount } from './utilities/serviceAccount'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -38,7 +40,7 @@ export default buildConfig({
     dateFormat: 'dd.MM.yyyy HH:mm',
     importMap: { baseDir: path.resolve(dirname) },
     components: {
-      beforeDashboard: ['@/components/ReviewQueue#ReviewQueue'],
+      beforeDashboard: ['@/components/RebuildStatus#RebuildStatus', '@/components/ReviewQueue#ReviewQueue'],
     },
     livePreview: {
       breakpoints: [
@@ -99,12 +101,14 @@ export default buildConfig({
     // Im Container (NODE_ENV=production) werden ausstehende Migrationen beim Start ausgeführt.
     prodMigrations: migrations,
   }),
+  onInit: ensurePreviewAccount,
   jobs: {
     // Für zeitgesteuertes Veröffentlichen (schedulePublish)
     autoRun: [{ cron: '* * * * *', queue: 'default' }],
     access: {
       // Veröffentlichung planen: alle angemeldeten Konten mit bestätigtem TOTP.
-      queue: async (args) => (await totpAccess(() => true)(args as never)) === true,
+      queue: async (args) =>
+        isStaff(args.req.user) && (await totpAccess(() => true)(args as never)) === true,
     },
   },
 })

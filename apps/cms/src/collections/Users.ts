@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { ROLES } from '@ccvb/shared'
-import { hasRole, isAdmin, isAdminField } from '@/access'
+import { authenticated, hasRole, isAdmin, isAdminField, isStaff } from '@/access'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -20,13 +20,14 @@ export const Users: CollectionConfig = {
     cookies: { sameSite: 'Lax', secure: process.env.NODE_ENV === 'production' },
   },
   access: {
-    admin: ({ req: { user } }) => Boolean(user),
+    admin: ({ req: { user } }) => isStaff(user),
     create: isAdmin,
     delete: isAdmin,
     // Alle Angemeldeten sehen die Kolleg*innen (z. B. für die Auswahl bei der Gegenprüfung)
-    read: ({ req: { user } }) => Boolean(user),
+    read: authenticated,
     // Ändern: nur das eigene Profil, Admins alle
-    update: ({ req: { user } }) => (hasRole(user, 'admin') ? true : { id: { equals: user?.id } }),
+    update: ({ req: { user } }) =>
+      hasRole(user, 'admin') ? true : isStaff(user) ? { id: { equals: user?.id } } : false,
   },
   fields: [
     { name: 'name', type: 'text', label: 'Name', required: true },

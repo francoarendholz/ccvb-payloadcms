@@ -28,6 +28,11 @@ export const ROLES = [
   { value: 'admin', label: 'Administration' },
   { value: 'redaktion', label: 'Redaktion' },
   { value: 'autor', label: 'Autor*in' },
+  // Dienstkonto der Website für die Entwurfsvorschau – darf nur lesen, kein Admin-Login.
+  { value: 'vorschau', label: 'Vorschau (Dienstkonto, nur lesen)' },
 ] as const
 
 export type Role = (typeof ROLES)[number]['value']
+
+/** Rollen der Menschen, die im CMS arbeiten (alles außer Dienstkonten). */
+export const EDITORIAL_ROLES = ['admin', 'redaktion', 'autor'] as const satisfies readonly Role[]

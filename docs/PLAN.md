@@ -26,7 +26,7 @@ Bildung, Leistungssport, Vielfalt**.
 | Datenbank | PostgreSQL 17 |
 | Sprachen | Deutsch (Standard), **Leichte Sprache** (Locale `ls`, HTML-`lang="de"`), Englisch |
 | Redaktion | **Optionale Gegenprüfung (Vier-Augen-Prinzip).** Alle dürfen selbst veröffentlichen. Wer möchte, lässt von einem *anderen* Konto gegenlesen. |
-| Rollen | `admin`, `redaktion`, `autor`. Sie unterscheiden sich nur bei Verwaltungsaufgaben: Löschen ab Redaktion; Kategorien, Navigation und Footer ab Redaktion bzw. Admin; Benutzer nur Admin. |
+| Rollen | `admin`, `redaktion`, `autor` (+ Dienstkonto-Rolle `vorschau`, nur lesen). Sie unterscheiden sich nur bei Verwaltungsaufgaben: Löschen ab Redaktion; Kategorien, Navigation und Footer ab Redaktion bzw. Admin; Benutzer nur Admin. |
 | Zugang CMS | Eigene Subdomain mit **verpflichtender 2FA (TOTP)**, kein VPN |
 | Hosting (vorerst) | Lab auf eigenem Docker-Host `docker.fritz.box` (Portainer). TLS übernimmt der vorhandene Nginx Proxy Manager. Die Produktionsumgebung ist noch nicht entschieden: dieser Host oder ein EU-VPS. Der Stack ist in beiden Fällen gleich. |
 | Entwicklung | Code lokal auf dem Mac (`pnpm dev`) gegen Postgres auf dem Lab-Host. Der Lab-Stack wird per SSH-Skript gebaut und deployt. |
@@ -70,11 +70,21 @@ docs/PLAN.md       dieses Dokument
   - Öffentliche Inhalte sind anonym lesbar.
   - Entwürfe sieht nur, wer angemeldet ist und den TOTP-Code bestätigt hat (`publishedOrVerified`).
 - **Admin-Oberfläche** auf Deutsch.
-- **Migrationen:** drei Stück in `apps/cms/src/migrations`. Sie laufen beim Containerstart automatisch (`prodMigrations`).
+- **Migrationen:** vier Stück in `apps/cms/src/migrations`. Sie laufen beim Containerstart automatisch (`prodMigrations`).
 - **Typen:** `payload-types.ts` wird mit `typescript.declare: false` erzeugt, damit das Frontend sie ohne Payload nutzen kann. Die Modul-Erweiterung für die Local API steht in `apps/cms/src/payload-generated.d.ts`.
 - **Beispielinhalte:** `pnpm seed` (in `apps/cms`) legt Seiten, Beiträge, Termine, Personen, Dokumente, Formular, Navigation und Footer in allen drei Sprachen an. `--force` löscht vorher. In `ccvb_dev` ist das bereits passiert.
 
-### Website `apps/web` (Phase 6/5 – Grundgerüst fertig, lokal getestet, noch nicht im Lab)
+### Rebuild-Pipeline und Vorschau (Phase 4 – lokal mit Docker getestet)
+- **Auslöser im CMS:** `src/hooks/triggerRebuild.ts`, zentral per `rebuildPlugin` in `src/plugins.ts` an Pages, Posts, Events, People, Media, Documents, Categories, Redirects, Forms und an beide Globals gehängt. Nur Änderungen am veröffentlichten Stand (Veröffentlichen, Ändern der Live-Fassung, Zurückziehen, Löschen), keine Entwürfe/Autosaves. Ohne `REBUILD_URL` passiert nichts.
+- **Builder** `apps/web/scripts/builder.mjs` (Web-Container, Port 4321 intern): bündelt Anfragen (15 s Ruhe, spätestens nach 2 min), nie parallel, Build nach `/data/www/builds/<zeit>`, Symlink `current` atomar, drei Fassungen bleiben, nächtlicher Neubau um 3 Uhr (Container mit `TZ=Europe/Berlin`). Schlägt ein Build fehl, bleibt die alte Fassung online. Rollback: `cd /data/www && ln -sfn builds/<zeit> current`. Startet außerdem den Astro-Node-Server (Port 4322) für `/api/form` und `/preview`.
+- **Weiterleitungen:** Astro erzeugt `redirects.json` aus dem Redirects-Plugin. Findet Caddy keine Datei, fragt es den Builder: 301/302 oder 404-Seite. Kein Caddy-Reload nötig.
+- **Dashboard:** `components/RebuildStatus.tsx` zeigt „wird aktualisiert / zuletzt aktualisiert / fehlgeschlagen“.
+- **Vorschau:** `apps/web/src/pages/preview/[collection]/[id].astro` prüft `PREVIEW_SECRET`, lädt den Entwurf mit dem API-Key des Dienstkontos. Live-Vorschau: meldet sich bei Payload bereit und lädt nach jedem Speichern neu.
+- **Dienstkonto:** wird beim CMS-Start aus `PREVIEW_API_KEY` angelegt/aktualisiert (`src/utilities/serviceAccount.ts`, E-Mail `vorschau@dienstkonto.invalid`). Rolle `vorschau` darf nur lesen, kein Admin-Zugang, sieht keine Benutzer. `authenticated` heißt jetzt „Mitarbeitende“ (`isStaff`).
+- **Caddy** (`docker/Caddyfile`): statisch aus `www/current/client`, `/media` aus dem Media-Volume, `/api/form` + `/preview/*` → web:4322, `/internal/*` gesperrt, 404 → Builder, `X-Robots-Tag: noindex` (Lab). Das CMS sendet immer `X-Robots-Tag: noindex`.
+- **Lokal testen:** `docker compose --env-file apps/web/.env -f docker/compose.local.yml up --build` (Web + Caddy gegen das CMS auf dem Mac, Website auf http://localhost:8130), dann `BASE_URL=http://localhost:8130 pnpm test` in `apps/web`. Letzter Lauf: 92/92. Ausfalltest (CMS gestoppt): Website, Suche, Downloads, Medien laufen weiter; Formular antwortet mit Fehlerseite; Neubau schlägt fehl, alte Fassung bleibt.
+
+### Website `apps/web` (Phase 6/5 – Grundgerüst fertig)
 - **Routing:** eine Route `src/pages/[...path].astro`; `src/lib/routes.ts` erzeugt alle URLs aller Sprachen aus den veröffentlichten Inhalten. Feste Bereiche je Sprache in `src/i18n/index.ts` (`aktuelles`/`news`, `termine`/`events`, `downloads`, `suche`/`search`, `danke`/`thank-you`). Startseite = Page mit Slug `home`.
 - **Sprachen:** `/`, `/leichte-sprache/…`, `/en/…`. Inhalte ohne Fassung werden nicht erzeugt, der Sprachumschalter zeigt nur vorhandene Fassungen, `hreflang` im Head. Verweist ein Link auf ein Ziel ohne Fassung in der aktuellen Sprache, zeigt er auf die deutsche Fassung. Leichte Sprache: `html.ls` (19 px, Zeilenabstand 1,75), UI-Texte in Leichter Sprache.
 - **Datenzugriff:** `src/lib/cms.ts` (REST, immer `locale` + `fallback-locale=none`, Anfragen werden pro Build gecacht).
@@ -90,7 +100,7 @@ docs/PLAN.md       dieses Dokument
 ### Lab-Umgebung `docker.fritz.box` (SSH: `root@docker.fritz.box`, LAN-IP 192.168.20.203)
 | Port | Dienst | Domain (NPM) | Status |
 |---|---|---|---|
-| 8130 | Caddy (Website, `/media`, `/preview`, `/api/form`) | ccvbastro.lab.code-ops.de | **fehlt noch** |
+| 8130 | Caddy (Website, `/media`, `/preview`, `/api/form`) | ccvbastro.lab.code-ops.de | siehe Phase 4 |
 | 8131 | CMS | ccvbcms.lab.code-ops.de | läuft |
 | 8132 | Postgres (nur LAN, DBs `ccvb_lab` + `ccvb_dev`) | – | läuft |
 
@@ -105,10 +115,9 @@ docs/PLAN.md       dieses Dokument
 
 ## 4. Offene Schritte
 
-Reihenfolge als Vorschlag. **Als Nächstes: Phase 4** (Rebuild-Pipeline, Vorschau, Caddy), damit die Website im Lab läuft.
+Reihenfolge als Vorschlag. **Als Nächstes:** Lab-Deploy (Rest von Phase 4), dann Phase 7 bzw. Design-Abstimmung.
 
 ### Phase 6 und 5: Restpunkte Frontend
-- **Vorschau-Route** `/preview/<collection>/<id>` (SSR, Token prüfen, Entwürfe mit `CMS_API_KEY` über `draft=true` holen – `lib/cms.ts` kann das schon; Ansichten aus `src/views/` wiederverwenden, `noindex`). Gehört zu Phase 4, Dienstkonto mit Leserechten anlegen.
 - **2-Klick-Einbettung** für YouTube/Instagram: es gibt noch keinen Einbettungs-Block im CMS. Block anlegen (URL + Titel), Frontend-Komponente mit Platzhalter und Einwilligungs-Schalter (UI-Texte `embedConsent`/`embedNotice` liegen schon bereit).
 - **Formular-Bestätigung:** Die Danke-Seite ist allgemein; die formularspezifische `confirmationMessage` wird noch nicht angezeigt.
 - **Fehlerseite des Formulars** ist bewusst minimal (eigenes HTML). Später an das Layout angleichen.
@@ -116,30 +125,10 @@ Reihenfolge als Vorschlag. **Als Nächstes: Phase 4** (Rebuild-Pipeline, Vorscha
 - **Design** nach Abstimmung angleichen (nur Tokens + Komponenten-Klassen). SVG-Logo besorgen.
 - Manueller Test mit Screenreader (VoiceOver/NVDA) und Tastatur – axe findet nur einen Teil der Probleme.
 
-### Phase 4: Rebuild-Pipeline, Vorschau und Caddy (Port 8130)
-1. **Rebuild-Hook im CMS** (`afterChange`/`afterDelete` auf Pages, Posts, Events, People, Documents, Media, Categories, Header, Footer, Redirects):
-   - POST an `http://web:4321/internal/rebuild` mit `REBUILD_TOKEN`
-   - nur bei Änderungen am veröffentlichten Stand, nicht bei Autosaves (`req.query.draft`/`autosave` beachten, siehe Stolperfallen)
-2. **Builder im `web`-Container:**
-   - bündelt Anfragen (etwa 15 s Ruhezeit, nie zwei Builds parallel)
-   - führt `pnpm build` aus (= `astro build` + `pagefind --site dist/client`)
-   - **zusätzlich nächtlich**, damit vergangene Termine aus den Listen fallen (die Website ist statisch)
-   - Container mit `TZ=Europe/Berlin` (Datumslogik „heute“ in `lib/queries.ts`)
-   - wechselt atomar per Symlink `www/current`
-   - behält drei Builds für ein Rollback
-   - erzeugt die Weiterleitungsdatei für Caddy aus `redirects`
-3. **Dashboard-Hinweis** im CMS: „Website wird aktualisiert / zuletzt aktualisiert um …“
-4. **Vorschau:**
-   - Die `previewUrl` (`apps/cms/src/utilities/previewUrl.ts`) zeigt bereits auf `WEB_URL/preview/<collection>/<id>?token=PREVIEW_SECRET&locale=…`.
-   - Die SSR-Route prüft den Token und holt Entwürfe mit einem **API-Key eines Dienstkontos**. API-Keys umgehen TOTP, das Konto braucht also nur Leserechte.
-   - Ausgabe mit `noindex`.
-5. **Compose ergänzen:**
-   - Services `web` (Node 22, Astro-Quellcode) und `caddy` (Port 8130)
-   - Volumes `www` und `media` (read-only in Caddy)
-   - `X-Robots-Tag: noindex` auf beiden Lab-Domains
-   - Caddy leitet `/api/form` (und `/preview/*`) an den Node-Server (`node dist/server/entry.mjs`) weiter und muss `Host` sowie `X-Forwarded-Proto` durchreichen: Astro prüft bei POST den `Origin` (CSRF-Schutz), sonst kommt 403.
-   - `MEDIA_URL=/media` für den Build setzen; Caddy liefert `/media/images` und `/media/documents` aus dem Media-Volume
-6. Ausfalltest: `docker compose stop cms`. Website, Suche und Downloads funktionieren weiter.
+### Phase 4: Restpunkte
+- **Lab-Deploy** des neuen Stacks (`./scripts/deploy-lab.sh`), danach in NPM `ccvbastro.lab.code-ops.de` → `192.168.20.203:8130` (Franco). Ausfalltest im Lab wiederholen (`docker compose stop cms`).
+- Live-Vorschau im CMS-Admin einmal von Hand prüfen (iframe von ccvbcms auf ccvbastro).
+- Builder-Fehler melden (E-Mail/Uptime) → Phase 7.
 
 ### Phase 7: Restlicher Betrieb
 - Nächtliches `pg_dump` plus Medien-Backup per `restic`, mit dokumentiertem Restore-Test
@@ -179,8 +168,10 @@ Reihenfolge als Vorschlag. **Als Nächstes: Phase 4** (Rebuild-Pipeline, Vorscha
 10. **Das macOS-`rsync` kennt kein `--chmod`.** Das Deploy-Skript nutzt deshalb `scp` und `chmod`.
 11. **Der Playwright-MCP schreibt nach `.playwright-mcp/`** im Repo. Der Ordner ist gitignored.
 12. **Astro prüft bei POST-Anfragen den `Origin`.** Tests oder Skripte, die `/api/form` direkt aufrufen, brauchen einen passenden `Origin`-Header, sonst 403.
-13. **`next dev` legt `apps/cms/AGENTS.md` und `CLAUDE.md` an** (Hinweis auf Next 16). Beide sind gitignored.
-14. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
+13. **Builds liegen außerhalb des Projekts** (`/data/www/builds/…`). Ihr Server-Code findet Pakete wie `sharp` nur über den Symlink `/data/www/node_modules`, den der Builder beim Start anlegt.
+14. **Docker läuft lokal** (Docker Desktop, ggf. erst starten). Container immer zuerst lokal testen (`docker/compose.local.yml`), dann ins Lab.
+15. **`next dev` legt `apps/cms/AGENTS.md` und `CLAUDE.md` an** (Hinweis auf Next 16). Beide sind gitignored.
+16. **Auto-Mode-Sicherheitsprüfung:** Sie hat zwei Aktionen blockiert:
     - den Aufruf der Portainer-API mit dem Token aus `.env`. Für das Deployment wird stattdessen SSH genutzt.
     - einen Dev-Server-Neustart direkt nach dem Zurücksetzen der Dev-Datenbank. Vorher nachfragen.
 
@@ -206,6 +197,7 @@ pnpm typecheck                             # astro check
 pnpm test                                  # Playwright + axe gegen den Build (Port 4322)
 
 # Lab
+docker compose --env-file apps/web/.env -f docker/compose.local.yml up -d --build   # Web + Caddy lokal
 ./scripts/deploy-lab.sh            # kompletter Stack
 ./scripts/deploy-lab.sh cms        # nur CMS (Build auf dem Server, ca. 2 min)
 ssh root@docker.fritz.box 'docker logs ccvb-cms-1 --tail 50'

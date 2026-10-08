@@ -1,0 +1,34 @@
+# Lokaler Test von Website-Container und Caddy gegen das CMS auf dem Mac (pnpm dev, Port 3000).
+# Aufruf: docker compose --env-file ../apps/web/.env -f docker/compose.local.yml up --build
+# Website: http://localhost:8130 · Builder für REBUILD_URL im CMS: http://localhost:4331/internal/rebuild
+name: ccvb-local
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    environment:
+      CMS_URL: http://host.docker.internal:3000
+      SITE_URL: http://localhost:8130
+      MEDIA_URL: /media
+      PREVIEW_SECRET: ${PREVIEW_SECRET:?}
+      CMS_API_KEY: ${CMS_API_KEY:?}
+      REBUILD_TOKEN: ${REBUILD_TOKEN:?}
+      DEBOUNCE_MS: 3000
+    volumes:
+      - www:/data/www
+    ports:
+      - "127.0.0.1:4331:4321"
+
+  caddy:
+    image: caddy:2.10-alpine
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - www:/srv/www:ro
+      - ../apps/cms/media:/srv/media:ro
+    ports:
+      - "127.0.0.1:8130:80"
+
+volumes:
+  www:
